@@ -31,6 +31,12 @@ import { setupSwagger } from './swagger/swagger';
 
 const app = express();
 
+// Railway (and most PaaS hosts) sit behind a reverse proxy that sets
+// X-Forwarded-For — without this, express-rate-limit refuses to trust that
+// header for per-IP limiting and throws ERR_ERL_UNEXPECTED_X_FORWARDED_FOR
+// on every request. `1` trusts exactly one hop (the platform's proxy).
+app.set('trust proxy', 1);
+
 // Security Middleware
 app.use(helmet());
 
