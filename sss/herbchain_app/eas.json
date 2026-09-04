@@ -1,0 +1,35 @@
+{
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "local"
+  },
+  "build": {
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://rcsayomijvykveqvarsq.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_t7krAPz7m-utnTZN0y4z_g_VvSszo2U",
+        "EXPO_PUBLIC_API_BASE_URL": "https://smart-horizon-techbros-production-c1af.up.railway.app/api/v1",
+        "EXPO_PUBLIC_VERIFY_BASE_URL": "https://herbchainweb.vercel.app"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://rcsayomijvykveqvarsq.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_t7krAPz7m-utnTZN0y4z_g_VvSszo2U",
+        "EXPO_PUBLIC_API_BASE_URL": "https://smart-horizon-techbros-production-c1af.up.railway.app/api/v1",
+        "EXPO_PUBLIC_VERIFY_BASE_URL": "https://herbchainweb.vercel.app"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}
