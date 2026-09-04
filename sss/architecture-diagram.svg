@@ -1,0 +1,123 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 700" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="a-slate" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
+    </marker>
+    <marker id="a-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#059669"/>
+    </marker>
+    <marker id="a-gray" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#64748b"/>
+    </marker>
+    <marker id="a-violet" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#7c3aed"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1400" height="700" fill="#ffffff"/>
+
+  <text x="700" y="32" text-anchor="middle" font-size="22" font-weight="700" fill="#0f172a">HerbChain / AyurTrace — System Architecture</text>
+
+  <!-- ================= EDGES (drawn first, so box fills cover their ends) ================= -->
+  <g fill="none" stroke-width="2">
+    <path d="M190,180 L300,230" stroke="#334155" marker-end="url(#a-slate)"/>
+    <path d="M100,180 C60,300 150,420 350,480" stroke="#334155" marker-end="url(#a-slate)"/>
+    <path d="M1150,180 C1000,200 750,215 600,230" stroke="#334155" marker-end="url(#a-slate)"/>
+    <path d="M700,180 C650,320 500,420 450,480" stroke="#059669" marker-end="url(#a-green)"/>
+    <path d="M250,340 C220,400 190,440 164,480" stroke="#334155" marker-end="url(#a-slate)"/>
+    <path d="M560,340 C650,400 850,440 968,480" stroke="#334155" marker-end="url(#a-slate)"/>
+    <path d="M600,340 C750,400 1050,440 1236,480" stroke="#334155" marker-end="url(#a-slate)"/>
+    <path d="M430,340 L432,480" stroke="#64748b" stroke-dasharray="6,5" marker-end="url(#a-gray)"/>
+    <path d="M500,480 C600,420 750,380 850,340" stroke="#7c3aed" marker-end="url(#a-violet)"/>
+    <path d="M900,340 C820,390 750,440 700,480" stroke="#334155" marker-end="url(#a-slate)"/>
+    <path d="M830,340 C700,400 600,440 480,480" stroke="#7c3aed" stroke-dasharray="6,5" marker-end="url(#a-violet)"/>
+  </g>
+
+  <!-- ================= EDGE LABELS ================= -->
+  <g font-size="12.5" fill="#1e293b" paint-order="stroke" stroke="#ffffff" stroke-width="4" stroke-linejoin="round">
+    <text x="245" y="212">REST API</text>
+    <text x="108" y="335">auth session</text>
+    <text x="905" y="200">verify + status</text>
+    <text x="590" y="360">writes</text>
+    <text x="178" y="430">Mongo I/O</text>
+    <text x="770" y="415">AI chat</text>
+    <text x="990" y="430">payments</text>
+    <text x="440" y="415">status read</text>
+    <text x="640" y="450">webhook</text>
+    <text x="790" y="415">tx submit</text>
+    <text x="680" y="455">status write</text>
+  </g>
+
+  <!-- ================= CLIENT ROW ================= -->
+  <g>
+    <rect x="40" y="70" width="300" height="110" rx="12" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.5"/>
+    <text x="190" y="100" text-anchor="middle" font-size="15" font-weight="700" fill="#1e293b">herbchain_app</text>
+    <text x="190" y="122" text-anchor="middle" font-size="12" fill="#334155">(Expo mobile —</text>
+    <text x="190" y="138" text-anchor="middle" font-size="12" fill="#334155">customers)</text>
+
+    <rect x="510" y="70" width="380" height="110" rx="12" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.5"/>
+    <text x="700" y="100" text-anchor="middle" font-size="15" font-weight="700" fill="#1e293b">herbchain_web</text>
+    <text x="700" y="122" text-anchor="middle" font-size="12" fill="#334155">(staff dashboard) — Farmer / Collection /</text>
+    <text x="700" y="138" text-anchor="middle" font-size="12" fill="#334155">Processing / Manufacturer / Government</text>
+
+    <rect x="1060" y="70" width="300" height="110" rx="12" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.5"/>
+    <text x="1210" y="100" text-anchor="middle" font-size="15" font-weight="700" fill="#1e293b">herbchain_web</text>
+    <text x="1210" y="122" text-anchor="middle" font-size="12" fill="#334155">(public</text>
+    <text x="1210" y="138" text-anchor="middle" font-size="12" fill="#334155">/verify/:code page)</text>
+  </g>
+
+  <!-- ================= SERVICES ROW ================= -->
+  <g>
+    <rect x="200" y="230" width="460" height="110" rx="12" fill="#ecfdf5" stroke="#059669" stroke-width="1.5"/>
+    <text x="430" y="278" text-anchor="middle" font-size="16" font-weight="700" fill="#1e293b">herbchain_backend</text>
+    <text x="430" y="300" text-anchor="middle" font-size="12.5" fill="#334155">(Express REST API)</text>
+
+    <rect x="780" y="230" width="380" height="110" rx="12" fill="#ecfdf5" stroke="#059669" stroke-width="1.5"/>
+    <text x="970" y="272" text-anchor="middle" font-size="16" font-weight="700" fill="#1e293b">herbchain_fabric/relay</text>
+    <text x="970" y="294" text-anchor="middle" font-size="12.5" fill="#334155">webhook listener +</text>
+    <text x="970" y="310" text-anchor="middle" font-size="12.5" fill="#334155">Fabric Gateway client</text>
+  </g>
+
+  <!-- ================= DATA / EXTERNAL SERVICES ROW ================= -->
+  <g>
+    <rect x="40" y="480" width="248" height="130" rx="12" fill="#fef9c3" stroke="#ca8a04" stroke-width="1.5"/>
+    <text x="164" y="512" text-anchor="middle" font-size="15" font-weight="700" fill="#1e293b">MongoDB</text>
+    <text x="164" y="535" text-anchor="middle" font-size="11.5" fill="#334155">catalog, orders, auth,</text>
+    <text x="164" y="551" text-anchor="middle" font-size="11.5" fill="#334155">chat, doctors</text>
+
+    <rect x="308" y="480" width="248" height="130" rx="12" fill="#f5f3ff" stroke="#7c3aed" stroke-width="1.5"/>
+    <text x="432" y="512" text-anchor="middle" font-size="15" font-weight="700" fill="#1e293b">Supabase</text>
+    <text x="432" y="535" text-anchor="middle" font-size="11.5" fill="#334155">batches, products,</text>
+    <text x="432" y="551" text-anchor="middle" font-size="11.5" fill="#334155">payments, customer accounts,</text>
+    <text x="432" y="567" text-anchor="middle" font-size="11.5" fill="#334155">+ blockchain status</text>
+
+    <rect x="576" y="480" width="248" height="130" rx="12" fill="#f1f5f9" stroke="#334155" stroke-width="1.5"/>
+    <text x="700" y="512" text-anchor="middle" font-size="14.5" font-weight="700" fill="#1e293b">Hyperledger Fabric</text>
+    <text x="700" y="528" text-anchor="middle" font-size="14.5" font-weight="700" fill="#1e293b">ledger</text>
+    <text x="700" y="550" text-anchor="middle" font-size="11.5" fill="#334155">CreateBatch, AddQualityTest,</text>
+    <text x="700" y="566" text-anchor="middle" font-size="11.5" fill="#334155">ApproveBatch, CreateShipment...</text>
+
+    <rect x="844" y="480" width="248" height="130" rx="12" fill="#fef9c3" stroke="#ca8a04" stroke-width="1.5"/>
+    <text x="968" y="512" text-anchor="middle" font-size="15" font-weight="700" fill="#1e293b">Gemini API</text>
+    <text x="968" y="535" text-anchor="middle" font-size="11.5" fill="#334155">AI chatbot</text>
+
+    <rect x="1112" y="480" width="248" height="130" rx="12" fill="#fef9c3" stroke="#ca8a04" stroke-width="1.5"/>
+    <text x="1236" y="512" text-anchor="middle" font-size="15" font-weight="700" fill="#1e293b">Razorpay</text>
+    <text x="1236" y="535" text-anchor="middle" font-size="11.5" fill="#334155">payments</text>
+  </g>
+
+  <!-- ================= LEGEND ================= -->
+  <g font-size="12" fill="#334155">
+    <line x1="60" y1="655" x2="100" y2="655" stroke="#334155" stroke-width="2"/>
+    <text x="108" y="659">primary request / read path</text>
+
+    <line x1="360" y1="655" x2="400" y2="655" stroke="#059669" stroke-width="2"/>
+    <text x="408" y="659">direct write</text>
+
+    <line x1="560" y1="655" x2="600" y2="655" stroke="#7c3aed" stroke-width="2"/>
+    <text x="608" y="659">Fabric relay integration (via Supabase only)</text>
+
+    <line x1="960" y1="655" x2="1000" y2="655" stroke="#64748b" stroke-width="2" stroke-dasharray="6,5"/>
+    <text x="1008" y="659">blockchain-status read / write-back</text>
+  </g>
+</svg>
