@@ -16,6 +16,7 @@ import type { Batch, BatchTimelineEvent, LabCheckIn, LabReport } from '../../../
 import { useBatchStore, useBatchesLive } from '../../../store/useBatchStore';
 import { useAuthStore } from '../../../store/authStore';
 import { TextField, SelectField, TestField, ChoiceField, NotesField } from '../../../components/FormFields';
+import SignaturePad from '../../../components/SignaturePad';
 import { summariseCheckIn, summariseLabReport } from '../labSummary';
 import {
   DRYING_METHODS, GRINDING_METHODS, SIEVE_SIZES, TRANSPORT_MODES, PACKAGING_TYPES,
@@ -63,9 +64,10 @@ const emptyReport = {
   lead: '', cadmium: '', arsenic: '', mercury: '', pesticides: 'Pass', aflatoxin: '',
   totalPlateCount: '', yeastMould: '', eColi: 'Pass', salmonella: 'Pass',
   visualInspection: '', odour: '', colour: '', texture: '',
-  labName: '', nablNumber: '', analyst: '', approvedBy: '',
+  labName: '', nablNumber: '', labLicenseNumber: '', analyst: '', approvedBy: '',
   testDate: new Date().toISOString().split('T')[0],
   certificateNumber: '', overallResult: 'Pass', remarks: '',
+  analystSignature: undefined as string | undefined,
 };
 
 /** Renders a generated summary, or a prompt to generate one. */
@@ -136,7 +138,7 @@ export default function ProcessingRequests() {
   const [generating, setGenerating] = useState(false);
 
   const setC = (k: string, v: string) => setCheckIn((f) => ({ ...f, [k]: v }));
-  const setR = (k: string, v: string | boolean) => setReport((f) => ({ ...f, [k]: v }));
+  const setR = (k: string, v: string | boolean | undefined) => setReport((f) => ({ ...f, [k]: v }));
 
   const close = () => {
     setSelected(null);
@@ -163,6 +165,10 @@ export default function ProcessingRequests() {
     setReport({
       ...emptyReport,
       labName: user?.organizationName ?? '',
+      // The lab's own government-assigned Ayurvedic ID, from its verified
+      // registration record — not something an analyst types per report, so
+      // it's always correct and genuinely unique to this lab.
+      labLicenseNumber: user?.ayurvedicId ?? '',
       analyst: user?.name ?? '',
       // Carry the received weight forward as the starting input quantity.
       outputQuantity: batch.labCheckIn?.receivedWeight ? `${batch.labCheckIn.receivedWeight} kg` : '',
@@ -714,6 +720,14 @@ export default function ProcessingRequests() {
                 <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <TextField label="Laboratory Name" value={report.labName} onChange={(v) => setR('labName', v)} placeholder="Kerala AYUSH Processing Unit" />
                   <TextField label="NABL Accreditation No." value={report.nablNumber} onChange={(v) => setR('nablNumber', v)} placeholder="TC-9876" />
+                  <TextField
+                    label="Lab AYUSH ID (from registered profile)"
+                    value={report.labLicenseNumber}
+                    onChange={(v) => setR('labLicenseNumber', v)}
+                    placeholder="No Ayurvedic ID on this account"
+                    required
+                    readOnly={Boolean(user?.ayurvedicId)}
+                  />
                   <TextField label="Analyst" value={report.analyst} onChange={(v) => setR('analyst', v)} placeholder="Name of the testing analyst" required />
                   <TextField label="Approved By" value={report.approvedBy} onChange={(v) => setR('approvedBy', v)} placeholder="Quality manager" />
                   <div className="space-y-1.5">
@@ -723,6 +737,13 @@ export default function ProcessingRequests() {
                   <TextField label="Certificate Number" value={report.certificateNumber} onChange={(v) => setR('certificateNumber', v)} placeholder="LAB-2026-0148" />
                   <SelectField label="Overall Result" value={report.overallResult} onChange={(v) => setR('overallResult', v)} options={OVERALL_RESULTS} placeholder="Select result" required span />
                   <NotesField label="Analyst Remarks" value={report.remarks} onChange={(v) => setR('remarks', v)} placeholder="Observations, deviations, retest notes" />
+                  <div className="md:col-span-2">
+                    <SignaturePad
+                      label="Analyst Signature"
+                      value={report.analystSignature}
+                      onChange={(dataUrl) => setR('analystSignature', dataUrl)}
+                    />
+                  </div>
                 </CardContent>
               </Card>
 

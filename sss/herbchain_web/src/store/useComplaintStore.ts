@@ -76,7 +76,9 @@ export const useComplaintStore = create<ComplaintStore>((set, get) => ({
     if (error) {
       console.error('Failed to file complaint:', error);
       set({ error: error.message });
-      throw error;
+      // A Postgrest error is a plain object, not an Error instance — throw a
+      // real one so callers checking `instanceof Error` see the actual reason.
+      throw new Error(error.message ?? 'Unknown error');
     }
     const saved = rowToComplaint(data as Row);
     set((state) => ({ complaints: [saved, ...state.complaints], error: null }));
@@ -98,7 +100,9 @@ export const useComplaintStore = create<ComplaintStore>((set, get) => ({
     if (error) {
       console.error('Failed to update complaint:', error);
       set({ error: error.message });
-      throw error;
+      // A Postgrest error is a plain object, not an Error instance — throw a
+      // real one so callers checking `instanceof Error` see the actual reason.
+      throw new Error(error.message ?? 'Unknown error');
     }
   },
 }));

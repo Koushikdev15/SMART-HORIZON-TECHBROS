@@ -21,9 +21,12 @@ interface FieldProps {
   span?: boolean;
   /** Native input type — 'date' and 'datetime-local' get real pickers. */
   type?: string;
+  /** For a value pulled from a verified record (e.g. the signed-in lab's own
+   *  registered Ayurvedic ID) rather than typed — shown, not editable. */
+  readOnly?: boolean;
 }
 
-export function TextField({ label, value, onChange, placeholder, limit, required, span, type }: FieldProps) {
+export function TextField({ label, value, onChange, placeholder, limit, required, span, type, readOnly }: FieldProps) {
   return (
     <div className={`space-y-1.5 ${span ? 'md:col-span-2' : ''}`}>
       <Label className="text-sm font-medium flex items-center gap-1.5">
@@ -32,12 +35,14 @@ export function TextField({ label, value, onChange, placeholder, limit, required
         {limit && <span className="text-[10px] font-normal text-muted-foreground">({limit})</span>}
       </Label>
       <Input
-        className="h-9"
+        className={`h-9 ${readOnly ? 'bg-muted/30 text-muted-foreground cursor-not-allowed focus-visible:ring-0' : ''}`}
         type={type}
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         required={required}
+        readOnly={readOnly}
+        tabIndex={readOnly ? -1 : undefined}
       />
     </div>
   );

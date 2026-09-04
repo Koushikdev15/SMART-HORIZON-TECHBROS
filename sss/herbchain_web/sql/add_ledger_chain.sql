@@ -25,7 +25,12 @@
 -- Safe to re-run.
 -- ============================================================================
 
-create extension if not exists pgcrypto;
+-- Supabase installs extensions into the `extensions` schema by default, not
+-- `public` — explicit here so the schema-qualified search_path below (which
+-- the trigger functions need to actually find digest()) matches where this
+-- really lands. Safe to re-run: if pgcrypto already exists anywhere, this is
+-- a no-op regardless of which schema it's already in.
+create extension if not exists pgcrypto with schema extensions;
 
 create table if not exists public.ledger_entries (
   id bigserial primary key,
@@ -58,7 +63,12 @@ create or replace function public.append_ledger_entry()
 returns trigger
 language plpgsql
 security definer
-set search_path = public
+-- `extensions` alongside `public` — pgcrypto's digest() lives there on a
+-- Supabase-managed database (see the create extension line above); a bare
+-- `search_path = public` makes digest() unresolvable even though the
+-- extension is installed, which is exactly the "function digest(...) does
+-- not exist" error this fixes.
+set search_path = public, extensions
 as $$
 declare
   last_hash text;
@@ -125,6 +135,7 @@ end $$;
 create or replace function public.verify_ledger_chain()
 returns table(is_valid boolean, entries_checked integer, first_broken_id bigint)
 language plpgsql
+set search_path = public, extensions
 as $$
 declare
   rec record;

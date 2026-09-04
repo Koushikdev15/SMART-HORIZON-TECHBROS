@@ -2,6 +2,8 @@ import { jsPDF } from 'jspdf';
 import QRCode from 'qrcode';
 import type { Batch, LabReport } from '../types';
 import { buildRows } from './certificateRows';
+import { drawTrademarkStamp } from './pdfStamp';
+import { barcodeDataUrl } from './pdfBarcode';
 
 /**
  * Certificate of Analysis, drawn as vector primitives rather than captured as a
@@ -26,6 +28,19 @@ const MUTED = { r: 108, g: 118, b: 110 };
 const PAGE_W = 210;
 const PAGE_H = 297;
 const M = 16; // page margin
+
+/** A short, human label for which panels the analyst actually filled in —
+ *  derived from the data itself rather than typed separately, so it can
+ *  never drift from what the results table below it actually shows. */
+function testTypeSummary(r: LabReport): string {
+  const panels: string[] = [];
+  if (r.macroscopy || r.microscopy || r.tlcProfile) panels.push('Pharmacognostic Identity');
+  if (r.dnaAuthentication) panels.push('DNA Barcode Authentication');
+  if (r.moisture || r.totalAsh || r.markerCompound) panels.push('Pharmacopoeial');
+  if (r.lead || r.cadmium || r.arsenic || r.mercury || r.pesticides || r.aflatoxin) panels.push('Heavy Metal & Residue');
+  if (r.totalPlateCount || r.eColi || r.salmonella) panels.push('Microbiological');
+  return panels.length ? panels.join(' + ') : 'General Screening';
+}
 
 const setFill = (d: jsPDF, c: { r: number; g: number; b: number }) => d.setFillColor(c.r, c.g, c.b);
 const setText = (d: jsPDF, c: { r: number; g: number; b: number }) => d.setTextColor(c.r, c.g, c.b);
@@ -172,8 +187,16 @@ export async function buildCertificate(batch: Batch): Promise<jsPDF> {
     ['Region of Origin', batch.region],
     ['Harvest Date', batch.harvestDate ? new Date(batch.harvestDate).toLocaleDateString('en-IN') : '—'],
     ['Testing Laboratory', r.labName || '—'],
+    // Always shown, never conditionally hidden — the lab's own government-
+    // assigned Ayurvedic ID (from its verified registration record, same
+    // value as the "Ayurvedic ID" on its Member Profile — see
+    // ProcessingRequests.tsx's openProcess, which pulls it from the signed-in
+    // account rather than letting an analyst type it). The fallback only
+    // applies to certificates issued before this was wired up.
+    ['Lab Ayurvedic ID', r.labLicenseNumber || '—'],
   ];
   if (r.nablNumber) facts.push(['NABL Accreditation', r.nablNumber]);
+  facts.push(['Type of Test', testTypeSummary(r)]);
   if (r.sieveSize) facts.push(['Particle Size', r.sieveSize]);
   if (r.outputQuantity) facts.push(['Processed Output', r.outputQuantity]);
 
@@ -193,6 +216,51 @@ export async function buildCertificate(batch: Batch): Promise<jsPDF> {
     doc.text(doc.splitTextToSize(String(value), colW - 4)[0] ?? '—', x, ly + 4);
   });
   y += Math.ceil(facts.length / COLS) * 8 + 3;
+
+  // ── DNA barcode — called out on its own, not left as one row among many ──
+  if (r.dnaAuthentication) {
+    const dnaFail = /^fail$/i.test(r.dnaAuthentication);
+    const dnaPass = /^pass$/i.test(r.dnaAuthentication);
+    const dnaColor = dnaFail ? FAIL : dnaPass ? PASS : MUTED;
+    reserve(11);
+    setFill(doc, dnaColor);
+    doc.roundedRect(M, y, 66, 7, 1.5, 1.5, 'F');
+    setText(doc, { r: 255, g: 255, b: 255 });
+    doc.setFontSize(7.5);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`DNA BARCODE: ${r.dnaAuthentication.toUpperCase()}`, M + 33, y + 4.7, { align: 'center' });
+    y += 11;
+  }
+
+  // ── Processing details — drying, grinding, storage results ──────────────
+  const processing: [string, string][] = [];
+  if (r.dryingMethod) processing.push(['Drying Method', r.dryingMethod]);
+  if (r.grindingMethod) processing.push(['Grinding Method', r.grindingMethod]);
+  if (r.sieveSize) processing.push(['Sieve Size', r.sieveSize]);
+  if (r.temperature) processing.push(['Process Temperature', `${r.temperature}°C`]);
+  if (r.humidity) processing.push(['Process Humidity', `${r.humidity}%`]);
+  if (r.storageCondition) processing.push(['Storage Condition', r.storageCondition]);
+  if (r.outputQuantity) processing.push(['Output Quantity', r.outputQuantity]);
+  if (r.yieldPercent) processing.push(['Yield', `${r.yieldPercent}%`]);
+
+  if (processing.length) {
+    reserve(10 + Math.ceil(processing.length / COLS) * 8);
+    heading(doc, 'PROCESSING DETAILS', y, 42);
+    y += 8;
+    processing.forEach(([label, value], i) => {
+      const x = M + (i % COLS) * colW;
+      const ly = y + Math.floor(i / COLS) * 8;
+      doc.setFontSize(6.6);
+      doc.setFont('helvetica', 'normal');
+      setText(doc, MUTED);
+      doc.text(label.toUpperCase(), x, ly);
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'bold');
+      setText(doc, INK);
+      doc.text(doc.splitTextToSize(String(value), colW - 4)[0] ?? '—', x, ly + 4);
+    });
+    y += Math.ceil(processing.length / COLS) * 8 + 4;
+  }
 
   // ── Results table ────────────────────────────────────────────────────────
   const cols = { p: M, s: M + 74, r: M + 120, v: PAGE_W - M };
@@ -323,6 +391,23 @@ export async function buildCertificate(batch: Batch): Promise<jsPDF> {
     // A missing QR must not block the certificate.
   }
 
+  // Code128 barcode, unique to this certificate — encodes the certificate
+  // number (falling back to the batch number so a barcode is never simply
+  // absent), placed in the gap between the verification text and the QR.
+  const barcodeValue = r.certificateNumber || `LAB-${batch.batchNumber}`;
+  const barcode = barcodeDataUrl(barcodeValue);
+  if (barcode) {
+    const bcX = 132;
+    const bcW = 40;
+    const bcH = 14;
+    const bcY = verifyY + (VERIFY_H - bcH) / 2;
+    doc.addImage(barcode, 'PNG', bcX, bcY, bcW, bcH);
+    doc.setFontSize(6);
+    doc.setFont('helvetica', 'normal');
+    setText(doc, MUTED);
+    doc.text(barcodeValue, bcX + bcW / 2, bcY + bcH + 3.2, { align: 'center' });
+  }
+
   doc.setFontSize(7.5);
   doc.setFont('helvetica', 'bold');
   setText(doc, INK);
@@ -340,6 +425,24 @@ export async function buildCertificate(batch: Batch): Promise<jsPDF> {
   y = verifyY + VERIFY_H + 4;
 
   // Sign-off — pinned to the foot of whichever page the flow ended on.
+
+  // The analyst's own captured signature, drawn above their printed name —
+  // a real mark, not a font standing in for one. Falls back to blank space
+  // (just the printed name below) when no signature was captured.
+  if (r.analystSignature) {
+    try {
+      doc.addImage(r.analystSignature, 'PNG', M, SIG_Y - 11, 34, 9.5);
+    } catch {
+      // A malformed signature image must not block the certificate.
+    }
+  }
+
+  // The trademark stamp — identical on every certificate this generator
+  // produces. Centred between the two signature lines rather than beside
+  // either one, so it can never collide with the QR block above (right-
+  // aligned, same column as the "Approved by" signature).
+  drawTrademarkStamp(doc, PAGE_W / 2, SIG_Y - 10, 7.5);
+
   setDraw(doc, INK);
   doc.setLineWidth(0.3);
   doc.line(M, SIG_Y, M + 55, SIG_Y);
@@ -360,7 +463,7 @@ export async function buildCertificate(batch: Batch): Promise<jsPDF> {
   if (r.labName) {
     doc.setFontSize(7.2);
     doc.text(
-      `${r.labName}${r.nablNumber ? `  ·  NABL ${r.nablNumber}` : ''}`,
+      `${r.labName}${r.nablNumber ? `  ·  NABL ${r.nablNumber}` : ''}${r.labLicenseNumber ? `  ·  Ayurvedic ID ${r.labLicenseNumber}` : ''}`,
       PAGE_W / 2,
       SIG_Y + 8.8,
       { align: 'center' },

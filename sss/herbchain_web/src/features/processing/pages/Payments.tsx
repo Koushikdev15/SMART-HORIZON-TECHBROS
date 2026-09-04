@@ -1,20 +1,35 @@
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
 import PageHeader from '../../../components/PageHeader';
 import BatchStatusBadge from '../../../components/BatchStatusBadge';
 import StatsCard from '../../../components/StatsCard';
-import { mockPayments } from '../../../lib/mockData';
-import { CreditCard, TrendingUp, CheckCircle2 } from 'lucide-react';
-
-const myPayments = mockPayments.filter(p => p.stage === 'Processing' || p.recipientRole === 'Processing & Laboratory');
+import DownloadReceiptButton from '../../../components/DownloadReceiptButton';
+import RecordPaymentDialog from '../../../components/RecordPaymentDialog';
+import { usePaymentStore, usePaymentsLive } from '../../../store/usePaymentStore';
+import { CreditCard, TrendingUp, CheckCircle2, Plus } from 'lucide-react';
 
 export default function Payments() {
-  const released = myPayments.filter(p => p.status === 'Released').reduce((s, p) => s + p.amount, 0);
-  const pending = myPayments.filter(p => p.status === 'Pending').reduce((s, p) => s + p.amount, 0);
+  usePaymentsLive();
+  const payments = usePaymentStore((s) => s.payments);
+  const [recording, setRecording] = useState(false);
+
+  const myPayments = payments.filter((p) => p.stage === 'Processing' || p.recipientRole === 'Processing & Laboratory');
+  const released = myPayments.filter((p) => p.status === 'Released').reduce((s, p) => s + p.amount, 0);
+  const pending = myPayments.filter((p) => p.status === 'Pending').reduce((s, p) => s + p.amount, 0);
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <PageHeader title="Payments" description="Track your earnings from batch processing and lab testing" />
+      <PageHeader
+        title="Payments"
+        description="Record and track payments to collection centres for certified batches"
+        actions={
+          <Button size="sm" className="h-8 text-xs bg-amber-600 hover:bg-amber-700 text-white" onClick={() => setRecording(true)}>
+            <Plus className="w-3.5 h-3.5 mr-1" /> Record Payment
+          </Button>
+        }
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <StatsCard title="Total Released" value={`₹${released.toLocaleString('en-IN')}`} icon={CheckCircle2} iconColor="text-primary" iconBg="bg-primary/6 dark:bg-primary/14" />
@@ -52,27 +67,33 @@ export default function Payments() {
                 <TableHead>Status</TableHead>
                 <TableHead>Released On</TableHead>
                 <TableHead>Remarks</TableHead>
+                <TableHead className="text-right">Proof</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {myPayments.map((p) => (
                 <TableRow key={p.id} className="table-row-hover">
                   <TableCell className="font-mono text-xs">{p.id}</TableCell>
-                  <TableCell className="font-mono text-xs text-muted-foreground">{p.batchId}</TableCell>
+                  <TableCell className="font-mono text-xs text-muted-foreground">{p.batchNumber || p.batchId}</TableCell>
                   <TableCell className="text-sm">{p.stage}</TableCell>
                   <TableCell className="text-sm font-bold text-amber-700 dark:text-amber-400">₹{p.amount.toLocaleString('en-IN')}</TableCell>
                   <TableCell><BatchStatusBadge status={p.status} /></TableCell>
                   <TableCell className="text-xs text-muted-foreground">{p.releasedAt ? new Date(p.releasedAt).toLocaleDateString('en-IN') : '—'}</TableCell>
                   <TableCell className="text-xs text-muted-foreground max-w-40 truncate">{p.remarks || '—'}</TableCell>
+                  <TableCell className="text-right"><DownloadReceiptButton payment={p} /></TableCell>
                 </TableRow>
               ))}
               {myPayments.length === 0 && (
-                <TableRow><TableCell colSpan={7} className="text-center py-8 text-sm text-muted-foreground">No payment records yet</TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} className="text-center py-8 text-sm text-muted-foreground">No payment records yet</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
+
+      {recording && (
+        <RecordPaymentDialog stage="Processing" defaultRecipientRole="Collection Center" onClose={() => setRecording(false)} />
+      )}
     </div>
   );
 }

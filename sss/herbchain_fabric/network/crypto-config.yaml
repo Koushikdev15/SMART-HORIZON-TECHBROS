@@ -1,0 +1,52 @@
+# AyurTrace+ Fabric network — crypto material definition for `cryptogen`.
+#
+# `cryptogen` (rather than standing up real Fabric CA servers) is intentional
+# here per the brief's §6: "Do not unnecessarily build a huge production
+# network... the objective is a working SIH prototype." cryptogen is
+# Hyperledger's own documented tool for exactly this — dev/test networks,
+# not production issuance. Swap for a real CA before this ever handles real
+# regulatory data.
+
+OrdererOrgs:
+  - Name: OrdererOrg
+    Domain: orderer.ayurtrace.com
+    EnableNodeOUs: true
+    Specs:
+      - Hostname: orderer1
+        SANS:
+          - localhost
+          - 127.0.0.1
+
+PeerOrgs:
+  - Name: CollectionOrg
+    Domain: collection.ayurtrace.com
+    EnableNodeOUs: true
+    Template:
+      Count: 1
+      SANS:
+        - localhost
+        - 127.0.0.1
+    Users:
+      Count: 1
+
+  - Name: LaboratoryOrg
+    Domain: laboratory.ayurtrace.com
+    EnableNodeOUs: true
+    Template:
+      Count: 1
+      SANS:
+        - localhost
+        - 127.0.0.1
+    Users:
+      Count: 1
+
+  - Name: ManufacturerOrg
+    Domain: manufacturer.ayurtrace.com
+    EnableNodeOUs: true
+    Template:
+      Count: 1
+      SANS:
+        - localhost
+        - 127.0.0.1
+    Users:
+      Count: 1

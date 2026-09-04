@@ -1,15 +1,19 @@
 import { useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import QrCodeImage from './QrCode';
+import BlockchainStatusBadge from './BlockchainStatusBadge';
+import { useAuthStore } from '../store/authStore';
 import { useProductStore, useProductsLive } from '../store/useProductStore';
 import { verifyUrlFor, verifyBaseUrl, isUnreachableFromPhone } from '../lib/verifyUrl';
 import type { Product } from '../types';
 import {
   Package, Search, QrCode as QrIcon, ExternalLink, Leaf, Calendar,
-  AlertTriangle, Loader2, Boxes, CheckCircle2, Factory, Printer,
+  AlertTriangle, Loader2, Boxes, CheckCircle2, Factory, Printer, ShieldAlert,
 } from 'lucide-react';
 
 /**
@@ -47,6 +51,7 @@ export default function ProductCatalogue({ showManufacturer = false, emptyHint }
 
   const [search, setSearch] = useState('');
   const [viewing, setViewing] = useState<Product | null>(null);
+  const [recalling, setRecalling] = useState<Product | null>(null);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -151,12 +156,14 @@ export default function ProductCatalogue({ showManufacturer = false, emptyHint }
               product={p}
               showManufacturer={showManufacturer}
               onShowQr={() => setViewing(p)}
+              onRecall={showManufacturer ? () => setRecalling(p) : undefined}
             />
           ))}
         </div>
       )}
 
       {viewing && <ProductQrDialog product={viewing} onClose={() => setViewing(null)} />}
+      {recalling && <RecallDialog product={recalling} onClose={() => setRecalling(null)} />}
     </div>
   );
 }
@@ -165,10 +172,13 @@ function ProductCard({
   product: p,
   showManufacturer,
   onShowQr,
+  onRecall,
 }: {
   product: Product;
   showManufacturer: boolean;
   onShowQr: () => void;
+  /** Present only for the regulator's view; omitted (no button) elsewhere. */
+  onRecall?: () => void;
 }) {
   const left = daysLeft(p.expiryDate);
   const expired = left !== null && left < 0;
@@ -196,6 +206,7 @@ function ProductCard({
               >
                 {p.status === 'Recalled' ? 'Recalled' : expired ? 'Expired' : p.status}
               </span>
+              <BlockchainStatusBadge status={p.blockchainStatus} txId={p.blockchainTxId} />
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">
               {p.category}
@@ -253,9 +264,84 @@ function ProductCard({
           >
             <ExternalLink className="w-3.5 h-3.5 mr-1" /> Trace Page
           </Button>
+          {onRecall && p.status !== 'Recalled' && (
+            <Button
+              size="sm"
+              variant="destructive"
+              className="flex-1 h-8 text-xs"
+              onClick={onRecall}
+            >
+              <ShieldAlert className="w-3.5 h-3.5 mr-1" /> Recall
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function RecallDialog({ product, onClose }: { product: Product; onClose: () => void }) {
+  const recallProduct = useProductStore((s) => s.recallProduct);
+  const user = useAuthStore((s) => s.user);
+  const [reason, setReason] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reason.trim()) {
+      toast.error('Enter a reason for the recall.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await recallProduct(product.id, reason.trim(), user?.name ?? 'Government Authority');
+      toast.error(`${product.productName} recalled — the consumer verification page now shows a warning.`);
+      onClose();
+    } catch {
+      toast.error('Could not issue the recall. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-destructive">
+            <ShieldAlert className="w-5 h-5" /> Recall {product.productName}
+          </DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <p className="text-xs text-muted-foreground">
+            This immediately marks <span className="font-mono">{product.productCode}</span> as recalled
+            on the ledger. Anyone scanning its QR code — including on packs already sold — will see a
+            "Do not consume" warning the next time they verify it.
+          </p>
+          <div className="space-y-1.5">
+            <Label className="text-sm font-medium">
+              Reason for Recall <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              placeholder="e.g. Pesticide residue exceeded safe limits in a retained sample"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              required
+              autoFocus
+            />
+          </div>
+          <div className="flex gap-2 pt-2">
+            <Button type="button" variant="outline" className="flex-1" onClick={onClose} disabled={submitting}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="destructive" className="flex-1" disabled={submitting}>
+              {submitting ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <ShieldAlert className="w-4 h-4 mr-1" />}
+              Confirm Recall
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 

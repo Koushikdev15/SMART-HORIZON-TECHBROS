@@ -52,6 +52,21 @@ export function useNetworkStats() {
     return () => { cancelled = true; };
   }, []);
 
+  // Annual harvest quota per species (see sql/add_species_harvest_quota.sql) —
+  // a species with no configured quota is simply absent from `conservation`.
+  const [quotas, setQuotas] = useState<{ species: string; annual_quota_kg: number | null }[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase.from('species_rules').select('species, annual_quota_kg');
+      if (cancelled) return;
+      if (error) console.error('Failed to load species quotas:', error);
+      else setQuotas((data as { species: string; annual_quota_kg: number | null }[]) ?? []);
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
   return useMemo(() => {
     // ── Headline figures ────────────────────────────────────────────────────
     const totalKg = batches.reduce((s, b) => s + num(b.quantity), 0);
@@ -116,6 +131,25 @@ export function useNetworkStats() {
       .map(([name, kg]) => ({ name, kg }))
       .sort((a, b) => b.kg - a.kg)
       .slice(0, 8);
+
+    // ── Conservation: annual harvest quota depletion per species ────────────
+    // NMPB-style ceilings (sql/add_species_harvest_quota.sql) checked against
+    // what's actually been collected so far this calendar year.
+    const currentYear = new Date().getFullYear();
+    const bySpeciesThisYear = new Map<string, number>();
+    batches.forEach((b) => {
+      const d = new Date(b.harvestDate);
+      if (Number.isNaN(d.getTime()) || d.getFullYear() !== currentYear) return;
+      bySpeciesThisYear.set(b.species, (bySpeciesThisYear.get(b.species) ?? 0) + num(b.quantity));
+    });
+    const conservation = quotas
+      .filter((q) => q.annual_quota_kg !== null && q.annual_quota_kg > 0)
+      .map((q) => {
+        const harvestedKg = Math.round(bySpeciesThisYear.get(q.species) ?? 0);
+        const quotaKg = q.annual_quota_kg as number;
+        return { species: q.species, harvestedKg, quotaKg, pct: Math.round((harvestedKg / quotaKg) * 100) };
+      })
+      .sort((a, b) => b.pct - a.pct);
 
     // ── Collection volume by harvest month ──────────────────────────────────
     const byMonth = new Map<string, { kg: number; batches: number }>();
@@ -277,6 +311,7 @@ export function useNetworkStats() {
       },
       funnel,
       species,
+      conservation,
       timeline,
       roles,
       quality,
@@ -292,5 +327,5 @@ export function useNetworkStats() {
       inventoryAll: batches as Batch[],
       products: products as Product[],
     };
-  }, [batches, products, members, membersLoaded, loadingBatches]);
+  }, [batches, products, members, membersLoaded, loadingBatches, quotas]);
 }

@@ -8,7 +8,7 @@ import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { supabase } from '../../lib/supabase';
 import ProductTraceability from './ProductTraceability';
-import type { Batch, Product } from '../../types';
+import type { Batch, Payment, Product } from '../../types';
 
 /** Parses the "lat, lng" free-text GPS field collectors enter — same format CreateBatch.tsx writes. */
 function parseGps(gps?: string): [number, number] | null {
@@ -143,9 +143,11 @@ export default function ProductVerification() {
   const { code } = useParams<{ code: string }>();
   const [product, setProduct] = useState<Product | null>(null);
   const [batches, setBatches] = useState<Batch[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [downloadingFor, setDownloadingFor] = useState<string | null>(null);
+  const [downloadingReceiptFor, setDownloadingReceiptFor] = useState<string | null>(null);
 
   /** Builds the Certificate of Analysis for one constituent batch. */
   const handleCertificate = async (batch: Batch) => {
@@ -159,6 +161,19 @@ export default function ProductVerification() {
       console.error('Certificate generation failed:', err);
     } finally {
       setDownloadingFor(null);
+    }
+  };
+
+  /** Builds the payment receipt for one stage of one constituent batch. */
+  const handleReceipt = async (payment: Payment) => {
+    setDownloadingReceiptFor(payment.id);
+    try {
+      const { generateReceiptPdf } = await import('../../lib/receiptPdf');
+      await generateReceiptPdf(payment);
+    } catch (err) {
+      console.error('Receipt generation failed:', err);
+    } finally {
+      setDownloadingReceiptFor(null);
     }
   };
 
@@ -196,6 +211,13 @@ export default function ProductVerification() {
         const { data: bRows } = await supabase.from('batches').select('id, payload').in('id', ids);
         if (!cancelled && bRows) {
           setBatches((bRows as { id: string; payload: Batch }[]).map((r) => ({ ...r.payload, id: r.id })));
+        }
+
+        // Payment proof for each stage these batches passed through — the
+        // receipt pill next to the certificate pill.
+        const { data: pRows } = await supabase.from('payments').select('id, payload').in('batch_id', ids);
+        if (!cancelled && pRows) {
+          setPayments((pRows as { id: string; payload: Payment }[]).map((r) => ({ ...r.payload, id: r.id })));
         }
       }
       if (!cancelled) setLoading(false);
@@ -382,6 +404,9 @@ export default function ProductVerification() {
               batches={batches}
               downloadingFor={downloadingFor}
               onCertificate={handleCertificate}
+              payments={payments}
+              downloadingReceiptFor={downloadingReceiptFor}
+              onReceipt={handleReceipt}
             />
           </section>
 

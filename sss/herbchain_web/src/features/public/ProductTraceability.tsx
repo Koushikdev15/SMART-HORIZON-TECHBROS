@@ -1,10 +1,20 @@
 import { useState } from 'react';
 import {
   Leaf, Factory, Truck, Award, ShieldCheck, Clock, MapPin, ChevronDown,
-  Package, GitMerge,
+  Package, GitMerge, Receipt,
 } from 'lucide-react';
-import type { Batch, Product, ProductComponent } from '../../types';
+import type { Batch, Payment, Product, ProductComponent } from '../../types';
 import { buildStages, onDay, when, type Stage } from '../../lib/traceStages';
+import BlockchainStatusBadge from '../../components/BlockchainStatusBadge';
+
+/** Which Payment.stage a trace stage's receipt (if any) should be looked up under. */
+const PAYMENT_STAGE_FOR: Record<string, Payment['stage'] | undefined> = {
+  harvest: undefined, // shown on 'collection' instead, so the pill isn't duplicated
+  collection: 'Collection',
+  laboratory: 'Processing',
+  manufacturing: 'Manufacturing',
+  supply: 'Supply Chain',
+};
 
 /**
  * Product traceability — the merge of every batch that went into a product.
@@ -26,6 +36,9 @@ interface Props {
   batches: Batch[];
   onCertificate: (batch: Batch) => void;
   downloadingFor?: string | null;
+  payments?: Payment[];
+  onReceipt?: (payment: Payment) => void;
+  downloadingReceiptFor?: string | null;
 }
 
 /** A trunk step is reached-and-finished, reached-and-ongoing, or not reached. */
@@ -39,6 +52,9 @@ export default function ProductTraceability({
   batches,
   onCertificate,
   downloadingFor,
+  payments = [],
+  onReceipt,
+  downloadingReceiptFor,
 }: Props) {
   const lanes = product.components.map((component) => ({
     component,
@@ -59,6 +75,9 @@ export default function ProductTraceability({
         {lanes.map(({ component, batch }, i) => (
           <BatchLane
             key={component.batchId}
+            payments={payments}
+            onReceipt={onReceipt}
+            downloadingReceiptFor={downloadingReceiptFor}
             index={i}
             total={laneCount}
             component={component}
@@ -143,6 +162,9 @@ function BatchLane({
   batch,
   onCertificate,
   downloading,
+  payments,
+  onReceipt,
+  downloadingReceiptFor,
 }: {
   index: number;
   total: number;
@@ -150,6 +172,9 @@ function BatchLane({
   batch?: Batch;
   onCertificate: (batch: Batch) => void;
   downloading: boolean;
+  payments: Payment[];
+  onReceipt?: (payment: Payment) => void;
+  downloadingReceiptFor?: string | null;
 }) {
   const stages = batch ? buildStages(batch).filter((s) => LANE_KEYS.includes(s.key)) : [];
 
@@ -184,15 +209,26 @@ function BatchLane({
       {/* Lane stages */}
       <div className="px-4 py-3">
         {stages.length > 0 ? (
-          stages.map((stage, i) => (
-            <LaneStage
-              key={stage.key}
-              stage={stage}
-              last={i === stages.length - 1}
-              onCertificate={batch && stage.certificate ? () => onCertificate(batch) : undefined}
-              downloading={downloading}
-            />
-          ))
+          stages.map((stage, i) => {
+            const paymentStage = PAYMENT_STAGE_FOR[stage.key];
+            const payment = batch && paymentStage
+              ? payments.find((p) => p.batchId === batch.id && p.stage === paymentStage)
+              : undefined;
+            return (
+              <LaneStage
+                key={stage.key}
+                stage={stage}
+                last={i === stages.length - 1}
+                onCertificate={batch && stage.certificate ? () => onCertificate(batch) : undefined}
+                downloading={downloading}
+                payment={payment}
+                onReceipt={payment && onReceipt ? () => onReceipt(payment) : undefined}
+                downloadingReceipt={payment ? downloadingReceiptFor === payment.id : false}
+                blockchainStatus={stage.certificate ? batch?.blockchainStatus : undefined}
+                blockchainTxId={stage.certificate ? batch?.blockchainTxId : undefined}
+              />
+            );
+          })
         ) : (
           // The batch row could not be loaded — fall back to what the product
           // itself recorded at formulation time.
@@ -221,11 +257,21 @@ function LaneStage({
   last,
   onCertificate,
   downloading,
+  payment,
+  onReceipt,
+  downloadingReceipt,
+  blockchainStatus,
+  blockchainTxId,
 }: {
   stage: Stage;
   last: boolean;
   onCertificate?: () => void;
   downloading: boolean;
+  payment?: Payment;
+  onReceipt?: () => void;
+  downloadingReceipt?: boolean;
+  blockchainStatus?: 'PENDING' | 'CONFIRMED' | 'FAILED';
+  blockchainTxId?: string;
 }) {
   const [open, setOpen] = useState(false);
   const Icon = stage.icon;
@@ -295,16 +341,32 @@ function LaneStage({
           </div>
         )}
 
-        {stage.certificate && onCertificate && (
-          <button
-            type="button"
-            onClick={onCertificate}
-            disabled={downloading}
-            className="mt-1.5 inline-flex items-center gap-1 text-[10px] font-bold text-amber-900 bg-amber-50 hover:bg-amber-100 border border-amber-300/70 rounded-full px-2 py-1 transition-colors disabled:opacity-60"
-          >
-            <Award className="w-3 h-3" />
-            {downloading ? 'Preparing…' : `Certificate ${stage.certificate}`}
-          </button>
+        {((stage.certificate && onCertificate) || (payment && onReceipt) || blockchainStatus) && (
+          <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+            <BlockchainStatusBadge status={blockchainStatus} txId={blockchainTxId} />
+            {stage.certificate && onCertificate && (
+              <button
+                type="button"
+                onClick={onCertificate}
+                disabled={downloading}
+                className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-900 bg-amber-50 hover:bg-amber-100 border border-amber-300/70 rounded-full px-2 py-1 transition-colors disabled:opacity-60"
+              >
+                <Award className="w-3 h-3" />
+                {downloading ? 'Preparing…' : `Certificate ${stage.certificate}`}
+              </button>
+            )}
+            {payment && onReceipt && (
+              <button
+                type="button"
+                onClick={onReceipt}
+                disabled={downloadingReceipt}
+                className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-900 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300/70 rounded-full px-2 py-1 transition-colors disabled:opacity-60"
+              >
+                <Receipt className="w-3 h-3" />
+                {downloadingReceipt ? 'Preparing…' : `Receipt ${payment.id} · ₹${payment.amount.toLocaleString('en-IN')}`}
+              </button>
+            )}
+          </div>
         )}
 
         {stage.narrative && (

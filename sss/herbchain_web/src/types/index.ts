@@ -68,6 +68,10 @@ export interface Batch {
   paymentStatus?: 'Pending' | 'Partial' | 'Completed';
   qrCode?: string;
   blockchainHash?: string;
+  /** Real Hyperledger Fabric transaction metadata — see the matching field
+   *  on Product for the full explanation (types/index.ts). */
+  blockchainTxId?: string;
+  blockchainStatus?: 'PENDING' | 'CONFIRMED' | 'FAILED';
   // Processing fields
   labCheckIn?: LabCheckIn;
   labReport?: LabReport;
@@ -187,6 +191,8 @@ export interface LabReport {
   // Sign-off
   labName?: string;
   nablNumber?: string;
+  /** The lab's own AYUSH/Ayurvedic testing licence or registration number — distinct from NABL accreditation. */
+  labLicenseNumber?: string;
   analyst?: string;
   approvedBy?: string;
   testDate?: string;
@@ -194,6 +200,8 @@ export interface LabReport {
   overallResult?: 'Pass' | 'Fail' | 'Conditional Pass';
   remarks?: string;
   aiSummary?: string;
+  /** Analyst's hand-drawn signature, captured at sign-off — a PNG data URL. */
+  analystSignature?: string;
 }
 
 /**
@@ -335,6 +343,14 @@ export interface Product {
   timeline: BatchTimelineEvent[];
   createdAt: string;
   status: 'Released' | 'Quarantined' | 'Recalled';
+  /** Real Hyperledger Fabric transaction metadata — written by the
+   *  ayurtrace-fabric-relay service (herbchain_fabric/relay), asynchronously,
+   *  after this row is already saved. Lives in a physical Supabase column,
+   *  not `payload` — see sql/add_blockchain_metadata.sql. Always undefined
+   *  until that relay is deployed and actually reaches a running Fabric
+   *  network; render accordingly (no badge, not a false "pending" state). */
+  blockchainTxId?: string;
+  blockchainStatus?: 'PENDING' | 'CONFIRMED' | 'FAILED';
 }
 
 export interface Member {
@@ -412,12 +428,19 @@ export interface Complaint {
 export interface Payment {
   id: string;
   batchId: string;
+  /** Denormalised so a receipt can be built without a second lookup. */
+  batchNumber?: string;
+  species?: string;
   stage: 'Collection' | 'Processing' | 'Manufacturing' | 'Supply Chain';
   amount: number;
   currency: string;
   status: 'Pending' | 'Released' | 'On Hold' | 'Failed';
   recipient: string;
   recipientRole: UserRole;
+  /** Who released the payment — the counterparty on the receipt. */
+  payerName?: string;
+  payerRole?: UserRole;
+  method?: 'Bank Transfer' | 'UPI' | 'Cash' | 'Cheque';
   releasedAt?: string;
   createdAt: string;
   blockchainTxId?: string;

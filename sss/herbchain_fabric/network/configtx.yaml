@@ -1,0 +1,179 @@
+# AyurTrace+ Fabric network — channel & genesis configuration.
+# Three peer orgs (Collection, Laboratory, Manufacturer) + one orderer org,
+# single-channel (`ayurtrace-channel`), etcdraft consensus (single-node
+# orderer — a PoC ordering service, not a fault-tolerant production one;
+# see README.md for what a production deployment would add).
+
+Organizations:
+  - &OrdererOrg
+    Name: OrdererOrg
+    ID: OrdererMSP
+    MSPDir: crypto-config/ordererOrganizations/orderer.ayurtrace.com/msp
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('OrdererMSP.member')"
+      Writers:
+        Type: Signature
+        Rule: "OR('OrdererMSP.member')"
+      Admins:
+        Type: Signature
+        Rule: "OR('OrdererMSP.admin')"
+
+  - &CollectionOrg
+    Name: CollectionOrgMSP
+    ID: CollectionOrgMSP
+    MSPDir: crypto-config/peerOrganizations/collection.ayurtrace.com/msp
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('CollectionOrgMSP.admin','CollectionOrgMSP.peer','CollectionOrgMSP.client')"
+      Writers:
+        Type: Signature
+        Rule: "OR('CollectionOrgMSP.admin','CollectionOrgMSP.client')"
+      Admins:
+        Type: Signature
+        Rule: "OR('CollectionOrgMSP.admin')"
+      Endorsement:
+        Type: Signature
+        Rule: "OR('CollectionOrgMSP.peer')"
+    AnchorPeers:
+      - Host: peer0.collection.ayurtrace.com
+        Port: 7051
+
+  - &LaboratoryOrg
+    Name: LaboratoryOrgMSP
+    ID: LaboratoryOrgMSP
+    MSPDir: crypto-config/peerOrganizations/laboratory.ayurtrace.com/msp
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('LaboratoryOrgMSP.admin','LaboratoryOrgMSP.peer','LaboratoryOrgMSP.client')"
+      Writers:
+        Type: Signature
+        Rule: "OR('LaboratoryOrgMSP.admin','LaboratoryOrgMSP.client')"
+      Admins:
+        Type: Signature
+        Rule: "OR('LaboratoryOrgMSP.admin')"
+      Endorsement:
+        Type: Signature
+        Rule: "OR('LaboratoryOrgMSP.peer')"
+    AnchorPeers:
+      - Host: peer0.laboratory.ayurtrace.com
+        Port: 9051
+
+  - &ManufacturerOrg
+    Name: ManufacturerOrgMSP
+    ID: ManufacturerOrgMSP
+    MSPDir: crypto-config/peerOrganizations/manufacturer.ayurtrace.com/msp
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('ManufacturerOrgMSP.admin','ManufacturerOrgMSP.peer','ManufacturerOrgMSP.client')"
+      Writers:
+        Type: Signature
+        Rule: "OR('ManufacturerOrgMSP.admin','ManufacturerOrgMSP.client')"
+      Admins:
+        Type: Signature
+        Rule: "OR('ManufacturerOrgMSP.admin')"
+      Endorsement:
+        Type: Signature
+        Rule: "OR('ManufacturerOrgMSP.peer')"
+    AnchorPeers:
+      - Host: peer0.manufacturer.ayurtrace.com
+        Port: 11051
+
+Capabilities:
+  Channel: &ChannelCapabilities
+    V2_0: true
+  Orderer: &OrdererCapabilities
+    V2_0: true
+  Application: &ApplicationCapabilities
+    V2_5: true
+
+Application: &ApplicationDefaults
+  Organizations:
+  Policies:
+    Readers:
+      Type: ImplicitMeta
+      Rule: "ANY Readers"
+    Writers:
+      Type: ImplicitMeta
+      Rule: "ANY Writers"
+    Admins:
+      Type: ImplicitMeta
+      Rule: "MAJORITY Admins"
+    LifecycleEndorsement:
+      Type: ImplicitMeta
+      Rule: "MAJORITY Endorsement"
+    Endorsement:
+      Type: ImplicitMeta
+      Rule: "MAJORITY Endorsement"
+  Capabilities:
+    <<: *ApplicationCapabilities
+
+Orderer: &OrdererDefaults
+  OrdererType: etcdraft
+  Addresses:
+    - orderer1.orderer.ayurtrace.com:7050
+  EtcdRaft:
+    Consenters:
+      - Host: orderer1.orderer.ayurtrace.com
+        Port: 7050
+        ClientTLSCert: crypto-config/ordererOrganizations/orderer.ayurtrace.com/orderers/orderer1.orderer.ayurtrace.com/tls/server.crt
+        ServerTLSCert: crypto-config/ordererOrganizations/orderer.ayurtrace.com/orderers/orderer1.orderer.ayurtrace.com/tls/server.crt
+  BatchTimeout: 2s
+  BatchSize:
+    MaxMessageCount: 100
+    AbsoluteMaxBytes: 99 MB
+    PreferredMaxBytes: 512 KB
+  Organizations:
+  Policies:
+    Readers:
+      Type: ImplicitMeta
+      Rule: "ANY Readers"
+    Writers:
+      Type: ImplicitMeta
+      Rule: "ANY Writers"
+    Admins:
+      Type: ImplicitMeta
+      Rule: "MAJORITY Admins"
+    BlockValidation:
+      Type: ImplicitMeta
+      Rule: "ANY Writers"
+
+Channel: &ChannelDefaults
+  Policies:
+    Readers:
+      Type: ImplicitMeta
+      Rule: "ANY Readers"
+    Writers:
+      Type: ImplicitMeta
+      Rule: "ANY Writers"
+    Admins:
+      Type: ImplicitMeta
+      Rule: "MAJORITY Admins"
+  Capabilities:
+    <<: *ChannelCapabilities
+
+Profiles:
+  # Fabric 2.3+ channel-participation API (no system channel) — the orderer
+  # is bootstrapped with BOOTSTRAPMETHOD=none in docker-compose.yaml and
+  # joined to this channel directly via `osnadmin channel join`, using the
+  # block this single profile produces. This replaces the older
+  # genesis-block-plus-consortium model — do not resurrect a Consortiums
+  # section here, the two approaches are mutually exclusive.
+  AyurTraceChannel:
+    <<: *ChannelDefaults
+    Orderer:
+      <<: *OrdererDefaults
+      Organizations:
+        - *OrdererOrg
+      Capabilities:
+        <<: *OrdererCapabilities
+    Application:
+      <<: *ApplicationDefaults
+      Organizations:
+        - *CollectionOrg
+        - *LaboratoryOrg
+        - *ManufacturerOrg

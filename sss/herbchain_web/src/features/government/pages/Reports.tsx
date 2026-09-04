@@ -8,7 +8,7 @@ import { downloadCsv } from '../../../lib/exportCsv';
 import { toast } from 'sonner';
 import {
   FileSpreadsheet, Download, Loader2, Boxes, Package, ScrollText,
-  FlaskConical, MapPin, ShieldAlert,
+  FlaskConical, MapPin, ShieldAlert, Award,
 } from 'lucide-react';
 
 /**
@@ -164,6 +164,49 @@ export default function Reports() {
         });
         return {
           headers: ['Type', 'Reference', 'Name', 'Organisation', 'Region', 'Issues', 'Date'],
+          rows,
+        };
+      },
+    },
+    {
+      id: 'ayush-export-compliance',
+      title: 'AYUSH Export Compliance Report',
+      description: 'Ministry of AYUSH export-readiness verdict per released product — licensing, GMP and source-batch lab clearance',
+      icon: Award,
+      count: s.products.filter((p) => p.status !== 'Recalled').length,
+      build: () => {
+        const rows = s.products
+          .filter((p) => p.status !== 'Recalled')
+          .map((p) => {
+            const sourceBatches = p.components
+              .map((c) => batches.find((b) => b.id === c.batchId))
+              .filter((b): b is (typeof batches)[number] => Boolean(b));
+            const failedBatches = sourceBatches.filter(
+              (b) => b.labReport?.overallResult === 'Fail' || b.dnaAuthentication === 'Fail' || b.pesticides === 'Fail',
+            );
+
+            const gaps: string[] = [];
+            if (!p.ayushLicense) gaps.push('Missing AYUSH licence');
+            if (!p.gmpCertificate) gaps.push('Missing GMP certificate');
+            if (!p.manufacturingLicense) gaps.push('Missing manufacturing licence');
+            if (p.status === 'Quarantined') gaps.push('Product quarantined');
+            if (failedBatches.length) gaps.push(`${failedBatches.length} source batch(es) failed lab clearance`);
+            if (p.expiryDate && new Date(p.expiryDate) < new Date()) gaps.push('Past expiry');
+
+            return [
+              p.productCode, p.productName, p.category, p.manufacturerName,
+              p.ayushLicense ?? '', p.gmpCertificate ?? '', p.manufacturingLicense ?? '',
+              sourceBatches.map((b) => b.botanicalName ?? b.species).join('; '),
+              gaps.length === 0 ? 'Export Ready' : 'Not Export Ready',
+              gaps.join('; '),
+            ];
+          });
+        return {
+          headers: [
+            'Product Code', 'Product Name', 'Category', 'Manufacturer',
+            'AYUSH Licence', 'GMP Certificate', 'Manufacturing Licence',
+            'Source Species (Botanical)', 'Export Status', 'Compliance Gaps',
+          ],
           rows,
         };
       },

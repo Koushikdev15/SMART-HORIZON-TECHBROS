@@ -1,0 +1,23 @@
+{
+  "name": "ayurtrace-chaincode",
+  "version": "1.0.0",
+  "description": "AyurTrace+ botanical traceability provenance chaincode for Hyperledger Fabric",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "fabric-chaincode-node start",
+    "pretest": "npm run build",
+    "test": "echo \"No unit tests yet — see herbchain_fabric/README.md for manual peer chaincode invoke examples\""
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "fabric-contract-api": "^2.5.4",
+    "fabric-shim": "^2.5.4"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5",
+    "@types/node": "^20.12.7"
+  }
+}

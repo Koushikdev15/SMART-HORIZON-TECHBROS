@@ -5,7 +5,7 @@ import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   AreaChart, Area, PieChart, Pie, Cell, Legend, LineChart, Line,
 } from 'recharts';
-import { Loader2, BarChart3, Droplets, Sprout, FlaskConical } from 'lucide-react';
+import { Loader2, BarChart3, Droplets, Sprout, FlaskConical, Leaf } from 'lucide-react';
 
 /**
  * Network analytics, computed from the live ledger.
@@ -309,6 +309,49 @@ export default function Analytics() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Conservation: NMPB-style annual harvest quota */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Leaf className="w-4 h-4 text-emerald-600" /> Conservation &amp; Harvest Quota
+          </CardTitle>
+          <CardDescription className="text-xs">
+            Quantity collected this year against each species' NMPB-style sustainable-yield ceiling
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {s.conservation.length === 0 ? (
+            <Empty label="No species have a configured harvest quota" />
+          ) : (
+            <div className="space-y-3 pt-1">
+              {s.conservation.map((c) => {
+                const tone =
+                  c.pct >= 100 ? 'bg-red-500' : c.pct >= 70 ? 'bg-amber-500' : 'bg-emerald-500';
+                const textTone =
+                  c.pct >= 100 ? 'text-red-600' : c.pct >= 70 ? 'text-amber-600' : 'text-emerald-600';
+                return (
+                  <div key={c.species}>
+                    <div className="flex justify-between items-baseline text-xs mb-1">
+                      <span className="font-medium truncate">{c.species}</span>
+                      <span className="text-muted-foreground shrink-0 ml-2">
+                        {c.harvestedKg} / {c.quotaKg} kg
+                        <span className={`font-semibold ml-1.5 ${textTone}`}>{c.pct}%</span>
+                      </span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className={`h-full rounded-full ${tone}`}
+                        style={{ width: `${Math.min(c.pct, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Product release trend */}
       <Card>

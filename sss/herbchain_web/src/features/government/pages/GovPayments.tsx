@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import PageHeader from '../../../components/PageHeader';
 import BatchStatusBadge from '../../../components/BatchStatusBadge';
 import StatsCard from '../../../components/StatsCard';
-import { mockPayments } from '../../../lib/mockData';
+import DownloadReceiptButton from '../../../components/DownloadReceiptButton';
+import { usePaymentStore, usePaymentsLive } from '../../../store/usePaymentStore';
 import { CreditCard, TrendingUp, ArrowUpRight, Eye, ShieldCheck, Landmark } from 'lucide-react';
 import type { Payment } from '../../../types';
 
@@ -25,6 +26,8 @@ const stageColors: Record<string, string> = {
 };
 
 export default function GovPayments() {
+  usePaymentsLive();
+  const payments = usePaymentStore((s) => s.payments);
   const [selected, setSelected] = useState<Payment | null>(null);
 
   // Generate mock bank details based on recipient name
@@ -86,10 +89,10 @@ export default function GovPayments() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {mockPayments.map((p) => (
+              {payments.map((p) => (
                 <TableRow key={p.id} className="table-row-hover">
                   <TableCell className="font-mono text-xs font-medium">{p.id}</TableCell>
-                  <TableCell className="font-mono text-xs text-muted-foreground">{p.batchId}</TableCell>
+                  <TableCell className="font-mono text-xs text-muted-foreground">{p.batchNumber || p.batchId}</TableCell>
                   <TableCell className={`text-sm font-medium ${stageColors[p.stage]}`}>{p.stage}</TableCell>
                   <TableCell className="text-sm">{p.recipient}</TableCell>
                   <TableCell className="text-sm font-semibold">₹{p.amount.toLocaleString('en-IN')}</TableCell>
@@ -101,15 +104,18 @@ export default function GovPayments() {
                     {p.blockchainTxId ? <code className="blockchain-hash">{p.blockchainTxId.slice(0, 10)}...</code> : <span className="text-xs text-muted-foreground">-</span>}
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-muted-foreground hover:text-primary cursor-pointer"
-                      onClick={() => setSelected(p)}
-                      title="View Details"
-                    >
-                      <Eye className="w-4 h-4" />
-                    </Button>
+                    <div className="flex items-center justify-end gap-1">
+                      <DownloadReceiptButton payment={p} size="icon" variant="ghost" className="h-7 w-7" label="" />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-muted-foreground hover:text-primary cursor-pointer"
+                        onClick={() => setSelected(p)}
+                        title="View Details"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -206,9 +212,7 @@ export default function GovPayments() {
                   <Button variant="outline" size="sm" onClick={() => setSelected(null)} className="h-8 text-xs">
                     Dismiss
                   </Button>
-                  <Button size="sm" className="h-8 text-xs bg-primary text-white" onClick={() => window.print()}>
-                    Print Receipt
-                  </Button>
+                  <DownloadReceiptButton payment={selected} size="sm" variant="default" className="h-8 text-xs bg-primary hover:bg-primary/90 text-white" />
                 </div>
               </div>
             </DialogContent>

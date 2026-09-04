@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import PageHeader from '../../../components/PageHeader';
+import BlockchainStatusBadge from '../../../components/BlockchainStatusBadge';
 import { useAuditTrail } from '../useAuditTrail';
 import { downloadCsv } from '../../../lib/exportCsv';
 import { toast } from 'sonner';
@@ -192,14 +193,17 @@ export default function AuditLogs() {
                           <TableCell className="text-xs max-w-48 truncate">{e.organization}</TableCell>
                           <TableCell className="text-xs max-w-36 truncate">{e.user}</TableCell>
                           <TableCell>
-                            {e.txHash ? (
-                              <span className="text-[10px] font-mono text-muted-foreground flex items-center gap-1">
-                                <Link2 className="w-2.5 h-2.5 shrink-0" />
-                                {e.txHash.slice(0, 14)}…
-                              </span>
-                            ) : (
-                              <span className="text-[10px] text-muted-foreground">—</span>
-                            )}
+                            <div className="flex items-center gap-1.5">
+                              {e.txHash ? (
+                                <span className="text-[10px] font-mono text-muted-foreground flex items-center gap-1">
+                                  <Link2 className="w-2.5 h-2.5 shrink-0" />
+                                  {e.txHash.slice(0, 14)}…
+                                </span>
+                              ) : (
+                                <span className="text-[10px] text-muted-foreground">—</span>
+                              )}
+                              <BlockchainStatusBadge status={e.blockchainStatus} txId={e.txHash} />
+                            </div>
                           </TableCell>
                         </TableRow>
                       );

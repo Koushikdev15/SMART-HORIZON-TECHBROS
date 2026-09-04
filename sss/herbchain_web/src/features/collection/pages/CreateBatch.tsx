@@ -1,16 +1,43 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import PageHeader from '../../../components/PageHeader';
 import DocumentUpload from '../../../components/DocumentUpload';
+import OfflineSyncStatus from '../../../components/OfflineSyncStatus';
 import { toast } from 'sonner';
-import { MapPin, Sparkles, CheckCircle, Package, Loader2, Lock, UserCheck, AlertCircle } from 'lucide-react';
+import { MapPin, Sparkles, CheckCircle, Package, Loader2, Lock, UserCheck, AlertCircle, Navigation, ShieldCheck, ShieldAlert, CalendarClock } from 'lucide-react';
 import { useBatchStore } from '../../../store/useBatchStore';
 import { useAuthStore } from '../../../store/authStore';
 import { useActiveMembers } from '../useActiveMembers';
+import { supabase } from '../../../lib/supabase';
 import type { Batch, UserRole } from '../../../types';
+
+/** A species' approved harvesting belt and season (public.species_rules) —
+ *  fetched so the collector's real-time GPS reading can be checked against it
+ *  client-side, the same rule the database trigger enforces server-side. */
+interface ZoneRule {
+  species: string;
+  min_lat: number;
+  max_lat: number;
+  min_lng: number;
+  max_lng: number;
+  harvest_month_start: number;
+  harvest_month_end: number;
+  zone_label: string | null;
+}
+
+function parseGps(gps: string): [number, number] | null {
+  const parts = gps.split(',').map((p) => Number(p.trim()));
+  if (parts.length !== 2 || parts.some((n) => Number.isNaN(n))) return null;
+  return [parts[0], parts[1]];
+}
+
+/** Mirrors the wrap-around-aware window check in add_species_collection_rules.sql. */
+function monthInSeason(month: number, start: number, end: number): boolean {
+  return start <= end ? month >= start && month <= end : month >= start || month <= end;
+}
 
 const HERB_MASTER_DB: Record<string, string> = {
   'Ashwagandha': 'Withania somnifera',
@@ -82,16 +109,61 @@ export default function CreateBatch() {
   const user = useAuthStore(state => state.user);
   const [batchId, setBatchId] = useState(generateBatchId());
   const [submitted, setSubmitted] = useState(false);
+  const [queuedOffline, setQueuedOffline] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [aiSummary, setAiSummary] = useState('');
   const [form, setForm] = useState({
     collectorType: 'Farmer', collectorId: '', collectorName: '', species: '', botanicalName: '',
-    quantity: '', unit: 'kg', harvestDate: '', harvestTime: '', method: '',
+    quantity: '', unit: 'kg', harvestDate: '', method: '',
     region: '', gpsLocation: '', moisture: '', storageCondition: '',
     qualityObservations: '', estimatedGrade: '', sustainabilityNotes: '', remarks: '',
   });
+  const [detectingLocation, setDetectingLocation] = useState(false);
 
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
+
+  // Approved belt + season per species (public.species_rules) — fetched once
+  // so the real-time GPS reading can be checked client-side the instant it's
+  // captured, ahead of the database trigger that has the final say.
+  const [zoneRules, setZoneRules] = useState<ZoneRule[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from('species_rules')
+        .select('species, min_lat, max_lat, min_lng, max_lng, harvest_month_start, harvest_month_end, zone_label');
+      if (cancelled) return;
+      if (error) console.error('Failed to load species zone rules:', error);
+      else setZoneRules((data as ZoneRule[]) ?? []);
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const activeRule = zoneRules.find((r) => r.species === form.species);
+  const gpsCoords = form.gpsLocation ? parseGps(form.gpsLocation) : null;
+  const geofenceStatus: 'no-rule' | 'unknown' | 'in-zone' | 'out-of-zone' = !activeRule
+    ? 'no-rule'
+    : !gpsCoords
+      ? 'unknown'
+      : gpsCoords[0] >= activeRule.min_lat && gpsCoords[0] <= activeRule.max_lat &&
+          gpsCoords[1] >= activeRule.min_lng && gpsCoords[1] <= activeRule.max_lng
+        ? 'in-zone'
+        : 'out-of-zone';
+  const seasonStatus: 'no-rule' | 'in-season' | 'out-of-season' = !activeRule
+    ? 'no-rule'
+    : monthInSeason(new Date().getMonth() + 1, activeRule.harvest_month_start, activeRule.harvest_month_end)
+      ? 'in-season'
+      : 'out-of-season';
+
+  // Once a real-time reading lands inside the species' approved belt, the zone
+  // is known — fill the region from it rather than asking the collector to
+  // type what the coordinates already say. Species with no configured rule
+  // keep the region field manually editable, exactly as before.
+  useEffect(() => {
+    if (activeRule?.zone_label && geofenceStatus === 'in-zone' && form.region !== activeRule.zone_label) {
+      set('region', activeRule.zone_label);
+    }
+  }, [activeRule, geofenceStatus]);
 
   // Government-approved collectors of the currently selected type. Switching the
   // type re-queries, so the name list always matches Farmer vs Wild Collector.
@@ -136,6 +208,18 @@ export default function CreateBatch() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedCollector) { toast.error(`Please select a ${form.collectorType.toLowerCase()} first.`); return; }
+    if (!form.gpsLocation || !form.harvestDate) {
+      toast.error('Press "Detect My Location" to capture a real-time GPS reading before submitting.');
+      return;
+    }
+    if (geofenceStatus === 'out-of-zone') {
+      toast.error(`This location is outside the approved harvesting belt for ${form.species}.`);
+      return;
+    }
+    if (seasonStatus === 'out-of-season') {
+      toast.error(`${form.species} is out of its approved harvest season right now.`);
+      return;
+    }
     if (!aiSummary) { toast.error('Please generate the AI summary before submitting.'); return; }
     await new Promise((r) => setTimeout(r, 1000));
     
@@ -180,7 +264,10 @@ export default function CreateBatch() {
     };
     
     // Persisted to Supabase — surface a failure instead of showing a success
-    // screen for a batch that was never saved.
+    // screen for a batch that was never saved. A batch that couldn't reach
+    // the network at all is queued rather than failed (see useBatchStore /
+    // OfflineSyncStatus) — addBatch resolves normally for that case too, so
+    // check the queue afterwards to tell the two apart.
     try {
       await addBatch(newBatch);
     } catch (err) {
@@ -190,8 +277,14 @@ export default function CreateBatch() {
       return;
     }
 
+    const wasQueued = useBatchStore.getState().pendingSync.some((b) => b.id === newBatch.id);
+    setQueuedOffline(wasQueued);
     setSubmitted(true);
-    toast.success(`Batch ${batchId} created and forwarded to Processing & Laboratory!`);
+    if (wasQueued) {
+      toast.success(`Batch ${batchId} saved on this device — will sync once you're back online.`);
+    } else {
+      toast.success(`Batch ${batchId} created and forwarded to Processing & Laboratory!`);
+    }
   };
 
   if (submitted) return (
@@ -201,15 +294,26 @@ export default function CreateBatch() {
           <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
             <CheckCircle className="w-8 h-8 text-primary" />
           </div>
-          <h3 className="text-xl font-bold font-heading">Batch Created!</h3>
-          <p className="text-muted-foreground mt-1 text-sm">Batch <span className="font-mono font-bold text-primary">{batchId}</span> has been recorded on blockchain and forwarded to Processing & Laboratory.</p>
-          <Button className="mt-6 bg-primary hover:bg-primary text-white" onClick={() => { 
-            setSubmitted(false); 
-            setAiSummary(''); 
-            setBatchId(generateBatchId()); 
+          <h3 className="text-xl font-bold font-heading">
+            {queuedOffline ? 'Batch Saved — Syncing Later' : 'Batch Created!'}
+          </h3>
+          <p className="text-muted-foreground mt-1 text-sm">
+            {queuedOffline ? (
+              <>Batch <span className="font-mono font-bold text-primary">{batchId}</span> is saved on this device.
+                No connection was available to reach the ledger — it will upload automatically, with nothing
+                re-entered, the moment you're back online.</>
+            ) : (
+              <>Batch <span className="font-mono font-bold text-primary">{batchId}</span> has been recorded on blockchain and forwarded to Processing & Laboratory.</>
+            )}
+          </p>
+          <Button className="mt-6 bg-primary hover:bg-primary text-white" onClick={() => {
+            setSubmitted(false);
+            setQueuedOffline(false);
+            setAiSummary('');
+            setBatchId(generateBatchId());
             setForm({
               collectorType: 'Farmer', collectorId: '', collectorName: '', species: '', botanicalName: '',
-              quantity: '', unit: 'kg', harvestDate: '', harvestTime: '', method: '',
+              quantity: '', unit: 'kg', harvestDate: '', method: '',
               region: '', gpsLocation: '', moisture: '', storageCondition: '',
               qualityObservations: '', estimatedGrade: '', sustainabilityNotes: '', remarks: '',
             });
@@ -228,6 +332,8 @@ export default function CreateBatch() {
         description="Record a new herb collection batch with complete details"
         badge={<span className="font-mono text-xs px-2.5 py-1 rounded-full bg-primary/10 text-primary font-semibold">{batchId}</span>}
       />
+
+      <OfflineSyncStatus />
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Collector Info — must be completed before the rest of the form unlocks */}
@@ -368,12 +474,22 @@ export default function CreateBatch() {
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-sm font-medium">Harvest Date<span className="text-red-500">*</span></Label>
-              <Input type="date" value={form.harvestDate} onChange={(e) => set('harvestDate', e.target.value)} required />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium">Harvest Time</Label>
-              <Input type="time" value={form.harvestTime} onChange={(e) => set('harvestTime', e.target.value)} />
+              <Label className="text-sm font-medium flex items-center gap-1.5">
+                <CalendarClock className="w-3.5 h-3.5" /> Harvest Date & Time
+              </Label>
+              <Input
+                readOnly
+                tabIndex={-1}
+                value={
+                  form.harvestDate
+                    ? new Date(form.harvestDate).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })
+                    : 'Captured automatically when you detect your location'
+                }
+                className={`bg-muted/30 cursor-not-allowed focus-visible:ring-0 ${form.harvestDate ? 'text-foreground font-medium' : 'text-muted-foreground'}`}
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Recorded at the exact moment of GPS capture below — not editable, so it can't be backdated.
+              </p>
             </div>
             <div className="space-y-1.5">
               <Label className="text-sm font-medium">Collection Method</Label>
@@ -389,37 +505,110 @@ export default function CreateBatch() {
         <Card>
           <CardHeader><CardTitle className="text-base">Location & Quality</CardTitle></CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium">Harvest Region<span className="text-red-500">*</span></Label>
-              <Input placeholder="e.g. Palakkad, Kerala" value={form.region} onChange={(e) => set('region', e.target.value)} required />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium">GPS Location</Label>
+            <div className="space-y-1.5 md:col-span-2 lg:col-span-2">
+              <Label className="text-sm font-medium">
+                GPS Location<span className="text-red-500">*</span>
+                {activeRule && (
+                  <span className="ml-2 text-[10px] font-normal text-muted-foreground">
+                    ({form.species} is geo-fenced — real-time position is checked against its approved belt)
+                  </span>
+                )}
+              </Label>
               <div className="relative">
                 <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="lat, lng or auto-detect" className="pl-9 pr-20" value={form.gpsLocation} onChange={(e) => set('gpsLocation', e.target.value)} />
-                <Button 
-                  type="button" 
-                  size="sm" 
+                {/* Read-only: real-time capture only, no manually typed coordinates —
+                    geo-fencing is meaningless against a number someone just typed in. */}
+                <Input
+                  readOnly
+                  tabIndex={-1}
+                  placeholder="Not yet captured — press Detect My Location"
+                  className="pl-9 pr-40 bg-muted/30 cursor-not-allowed focus-visible:ring-0"
+                  value={form.gpsLocation}
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={detectingLocation}
                   className="absolute right-1 top-1 h-7 text-xs px-3 bg-primary hover:bg-primary/90 text-white font-medium shadow-sm transition-colors"
                   onClick={() => {
-                    if (navigator.geolocation) {
-                      toast.loading('Detecting location...', { id: 'gps-toast' });
-                      navigator.geolocation.getCurrentPosition(
-                        (pos) => {
-                          set('gpsLocation', `${pos.coords.latitude.toFixed(6)}, ${pos.coords.longitude.toFixed(6)}`);
-                          toast.success('Location detected!', { id: 'gps-toast' });
-                        },
-                        () => toast.error('Failed to detect location. Please ensure location permissions are granted.', { id: 'gps-toast' })
-                      );
-                    } else {
+                    if (!navigator.geolocation) {
                       toast.error('Geolocation is not supported by your browser.');
+                      return;
                     }
+                    setDetectingLocation(true);
+                    toast.loading('Detecting your location...', { id: 'gps-toast' });
+                    navigator.geolocation.getCurrentPosition(
+                      (pos) => {
+                        // GPS and harvest timestamp are captured together — this
+                        // click *is* the collection event, not a form field filled
+                        // in after the fact.
+                        setForm((f) => ({
+                          ...f,
+                          gpsLocation: `${pos.coords.latitude.toFixed(6)}, ${pos.coords.longitude.toFixed(6)}`,
+                          harvestDate: new Date().toISOString(),
+                        }));
+                        setDetectingLocation(false);
+                        toast.success('Location captured — harvest date & time recorded.', { id: 'gps-toast' });
+                      },
+                      () => {
+                        setDetectingLocation(false);
+                        toast.error('Failed to detect location. Please ensure location permissions are granted.', { id: 'gps-toast' });
+                      },
+                      { enableHighAccuracy: true, timeout: 15000 },
+                    );
                   }}
                 >
-                  Detect
+                  <Navigation className="w-3.5 h-3.5 mr-1" />
+                  {detectingLocation ? 'Detecting…' : 'Detect My Location'}
                 </Button>
               </div>
+
+              {activeRule && form.gpsLocation && (
+                <div className="flex flex-wrap gap-2 pt-0.5">
+                  <span
+                    className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full ${
+                      geofenceStatus === 'in-zone'
+                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400'
+                        : 'bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400'
+                    }`}
+                  >
+                    {geofenceStatus === 'in-zone' ? <ShieldCheck className="w-3 h-3" /> : <ShieldAlert className="w-3 h-3" />}
+                    {geofenceStatus === 'in-zone' ? `Inside approved belt (${activeRule.zone_label ?? 'zone match'})` : 'Outside approved harvesting belt'}
+                  </span>
+                  <span
+                    className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full ${
+                      seasonStatus === 'in-season'
+                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400'
+                        : 'bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400'
+                    }`}
+                  >
+                    {seasonStatus === 'in-season' ? <ShieldCheck className="w-3 h-3" /> : <ShieldAlert className="w-3 h-3" />}
+                    {seasonStatus === 'in-season' ? 'Within approved harvest season' : 'Outside approved harvest season'}
+                  </span>
+                </div>
+              )}
+              {(geofenceStatus === 'out-of-zone' || seasonStatus === 'out-of-season') && (
+                <p className="text-[11px] text-red-600 dark:text-red-400">
+                  This submission will be rejected by the ledger — {form.species} may only be recorded inside its
+                  approved belt and season (NMPB / GACP rule).
+                </p>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">
+                Harvest Region<span className="text-red-500">*</span>
+                {activeRule && geofenceStatus === 'in-zone' && (
+                  <span className="ml-1.5 text-[10px] font-normal text-muted-foreground">(from GPS)</span>
+                )}
+              </Label>
+              <Input
+                placeholder="e.g. Palakkad, Kerala"
+                value={form.region}
+                onChange={(e) => set('region', e.target.value)}
+                readOnly={Boolean(activeRule && geofenceStatus === 'in-zone')}
+                className={activeRule && geofenceStatus === 'in-zone' ? 'bg-muted/30 cursor-not-allowed focus-visible:ring-0' : ''}
+                required
+              />
             </div>
             <div className="space-y-1.5">
               <Label className="text-sm font-medium">Moisture Content (%)</Label>

@@ -16,12 +16,24 @@ import type { Batch, BatchTimelineEvent } from '../types';
  *
  * `mockBatches` are still shown alongside real rows as demo seed data, so the
  * role dashboards aren't empty before any real batch exists.
+ *
+ * Offline queue: a Collection Centre creating a batch over a poor rural
+ * connection should not lose the record because the request never reached
+ * Supabase. `addBatch` still shows the batch immediately either way; when the
+ * write can't reach the network it's kept in `pendingSync` (persisted to
+ * localStorage so it survives a reload or closed tab) and retried once
+ * connectivity returns — automatically on the browser's `online` event, or
+ * on demand via `syncPendingBatches`. A real rejection from the database
+ * (geo-fence, season, quality-gate — see sql/*.sql) is not queued; only
+ * requests that never reached the server are.
  */
 interface BatchStore {
   batches: Batch[];
   loading: boolean;
   error: string | null;
   loaded: boolean;
+  pendingSync: Batch[];
+  syncing: boolean;
 
   loadBatches: () => Promise<void>;
   subscribe: () => () => void;
@@ -31,39 +43,90 @@ interface BatchStore {
   patchBatch: (id: string, patch: Partial<Batch>, event?: BatchTimelineEvent) => Promise<void>;
   updateBatchStatus: (id: string, status: Batch['status'], newEvent: BatchTimelineEvent) => Promise<void>;
   rejectBatch: (id: string, stage: string, reason: string) => Promise<void>;
+  /** Retries every queued batch. Safe to call whether or not anything is pending. */
+  syncPendingBatches: () => Promise<void>;
 }
 
 /** Demo seeds are identified so they're never written back to the database. */
 const mockIds = new Set(mockBatches.map((b) => b.id));
 const isMock = (id: string) => mockIds.has(id);
 
-type Row = { id: string; payload: Batch };
+type Row = {
+  id: string;
+  payload: Batch;
+  // Written by ayurtrace-fabric-relay, not by this app — see the field
+  // comments on Batch (types/index.ts) and sql/add_blockchain_metadata.sql.
+  blockchain_tx_id?: string | null;
+  blockchain_status?: 'PENDING' | 'CONFIRMED' | 'FAILED' | null;
+};
 
-const rowToBatch = (row: Row): Batch => ({ ...row.payload, id: row.id });
+const rowToBatch = (row: Row): Batch => ({
+  ...row.payload,
+  id: row.id,
+  blockchainTxId: row.blockchain_tx_id ?? undefined,
+  blockchainStatus: row.blockchain_status ?? undefined,
+});
+
+const PENDING_SYNC_KEY = 'ayurtrace-pending-batches';
+
+function loadPendingFromStorage(): Batch[] {
+  try {
+    const raw = localStorage.getItem(PENDING_SYNC_KEY);
+    return raw ? (JSON.parse(raw) as Batch[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function savePendingToStorage(pending: Batch[]) {
+  try {
+    localStorage.setItem(PENDING_SYNC_KEY, JSON.stringify(pending));
+  } catch {
+    // Storage unavailable (private browsing, quota) — the queue still works
+    // for the rest of this session, it just won't survive a reload.
+  }
+}
+
+/** True when a write failed because it never reached the server — not
+ *  because the server reached a verdict and rejected it. A real Postgres
+ *  rejection (a trigger's `raise exception`) comes back with an error code;
+ *  a network failure does not. */
+function isConnectivityError(error: { message?: string; code?: string } | null): boolean {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) return true;
+  if (!error) return false;
+  if (error.code) return false;
+  return /fetch|network/i.test(error.message ?? '');
+}
 
 export const useBatchStore = create<BatchStore>((set, get) => ({
   batches: mockBatches,
   loading: false,
   error: null,
   loaded: false,
+  pendingSync: loadPendingFromStorage(),
+  syncing: false,
 
   loadBatches: async () => {
     set({ loading: true });
     const { data, error } = await supabase
       .from('batches')
-      .select('id, payload')
+      .select('id, payload, blockchain_tx_id, blockchain_status')
       .order('created_at', { ascending: false });
 
     if (error) {
       console.error('Failed to load batches:', error);
-      // Keep the demo seeds visible rather than blanking the screen.
+      // Keep the demo seeds (and anything queued offline) visible rather
+      // than blanking the screen.
       set({ loading: false, error: error.message, loaded: true });
       return;
     }
 
     const real = (data as Row[]).map(rowToBatch);
+    // Queued batches haven't reached the database yet, so they're not in
+    // `real` — show them anyway, they were shown the moment they were created.
+    const pending = get().pendingSync;
     set({
-      batches: [...real, ...mockBatches],
+      batches: [...pending, ...real, ...mockBatches],
       loading: false,
       error: null,
       loaded: true,
@@ -78,16 +141,36 @@ export const useBatchStore = create<BatchStore>((set, get) => ({
     // Show it straight away, then reconcile with the row the database returns.
     set((state) => ({ batches: [batch, ...state.batches] }));
 
-    const { data, error } = await supabase
-      .from('batches')
-      .insert({ payload: batch })
-      .select('id, payload')
-      .single();
+    let data: Row | null = null;
+    let error: { message?: string; code?: string } | null = null;
+    try {
+      const result = await supabase.from('batches').insert({ payload: batch }).select('id, payload, blockchain_tx_id, blockchain_status').single();
+      data = result.data as Row | null;
+      error = result.error;
+    } catch (err) {
+      // A fetch that never completed (offline, DNS, timeout) throws rather
+      // than resolving with an `error` field, depending on the environment.
+      error = { message: err instanceof Error ? err.message : 'Network request failed' };
+    }
 
     if (error) {
+      if (isConnectivityError(error)) {
+        // Never reached the server — keep it queued, not failed. The batch
+        // stays visible (it's already in `batches`) and will sync itself.
+        set((state) => {
+          const pendingSync = [batch, ...state.pendingSync];
+          savePendingToStorage(pendingSync);
+          return { pendingSync };
+        });
+        return;
+      }
       console.error('Failed to save batch:', error);
-      set({ error: error.message });
-      throw error;
+      set({ error: error.message ?? 'Unknown error' });
+      // Supabase/Postgrest errors are plain objects, not Error instances — a
+      // caller doing `err instanceof Error` (CreateBatch.tsx's toast, for one)
+      // would silently swallow the real reason (a geo-fence/season/quality-gate
+      // rejection from the SQL triggers) and show a useless "unknown error".
+      throw new Error(error.message ?? 'Unknown error');
     }
 
     const saved = rowToBatch(data as Row);
@@ -119,7 +202,10 @@ export const useBatchStore = create<BatchStore>((set, get) => ({
     if (error) {
       console.error('Failed to patch batch:', error);
       set({ error: error.message });
-      throw error;
+      // See addBatch's identical fix — a Postgrest error is a plain object,
+      // not an Error instance, so callers checking `instanceof Error` need a
+      // real one or the SQL trigger's actual rejection reason gets hidden.
+      throw new Error(error.message ?? 'Unknown error');
     }
   },
 
@@ -195,6 +281,40 @@ export const useBatchStore = create<BatchStore>((set, get) => ({
       set({ error: error.message });
     }
   },
+
+  syncPendingBatches: async () => {
+    const pending = get().pendingSync;
+    if (!pending.length || get().syncing) return;
+    if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+
+    set({ syncing: true });
+    const stillPending: Batch[] = [];
+
+    for (const batch of pending) {
+      try {
+        const { data, error } = await supabase
+          .from('batches')
+          .insert({ payload: batch })
+          .select('id, payload, blockchain_tx_id, blockchain_status')
+          .single();
+
+        if (error) {
+          stillPending.push(batch); // still unreachable, or the same block recurs — keep it queued
+          continue;
+        }
+
+        const saved = rowToBatch(data as Row);
+        set((state) => ({
+          batches: state.batches.map((b) => (b.id === batch.id ? saved : b)),
+        }));
+      } catch {
+        stillPending.push(batch);
+      }
+    }
+
+    savePendingToStorage(stillPending);
+    set({ pendingSync: stillPending, syncing: false });
+  },
 }));
 
 /**
@@ -207,9 +327,18 @@ export function useBatchesLive() {
   const error = useBatchStore((s) => s.error);
 
   useEffect(() => {
-    const { loaded, loading: isLoading, loadBatches, subscribe } = useBatchStore.getState();
+    const { loaded, loading: isLoading, loadBatches, subscribe, syncPendingBatches } = useBatchStore.getState();
     if (!loaded && !isLoading) void loadBatches();
-    return subscribe();
+    void syncPendingBatches();
+
+    // A batch queued while offline retries itself the moment the browser
+    // regains connectivity — no manual action needed, though one is offered too.
+    window.addEventListener('online', syncPendingBatches);
+    const unsubscribe = subscribe();
+    return () => {
+      window.removeEventListener('online', syncPendingBatches);
+      unsubscribe();
+    };
   }, []);
 
   return { loading, error };

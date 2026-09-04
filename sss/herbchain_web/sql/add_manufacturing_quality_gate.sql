@@ -15,6 +15,17 @@
 -- moisture exceeds this species' approved threshold, the transition to
 -- Manufacturing is rejected regardless of what the form says.
 --
+-- Same independence problem exists for two more fields on that form:
+-- "DNA Authentication" and "Pesticide Residue" (ProcessingRequests.tsx,
+-- TestField dropdowns, each Pass / Fail / Pending) are recorded but never
+-- checked against overallResult — an analyst can mark DNA or pesticide as
+-- Fail and still click Pass on the overall result, and the batch proceeds.
+-- This trigger blocks that too: DNA = Fail or Pesticide = Fail on the batch
+-- being saved hard-stops the Manufacturing transition, independent of
+-- overallResult. (Pending is not blocked — a test not yet resulted is not a
+-- failure; NMPB/pharmacopoeial ppm thresholds are not modelled because the
+-- form captures a Pass/Fail verdict, not a numeric ppm reading.)
+--
 -- Scope: only fires at the moment status is *changing to* 'Manufacturing' —
 -- never on a re-save of a batch already past that stage, so no existing
 -- batch that already reached Manufacturing is retroactively affected.
@@ -37,6 +48,14 @@ begin
 
   if not entering_manufacturing then
     return new;
+  end if;
+
+  if new.payload->>'dnaAuthentication' = 'Fail' then
+    raise exception 'Quality gate failed: DNA authentication is marked Fail for % — this batch cannot be forwarded to Manufacturing regardless of the lab''s overall result.', new.payload->>'species';
+  end if;
+
+  if new.payload->>'pesticides' = 'Fail' then
+    raise exception 'Quality gate failed: pesticide residue is marked Fail for % — this batch cannot be forwarded to Manufacturing regardless of the lab''s overall result.', new.payload->>'species';
   end if;
 
   select * into rule from public.species_rules where species = (new.payload->>'species');

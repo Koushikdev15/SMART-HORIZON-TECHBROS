@@ -24,6 +24,7 @@ export interface AuditEvent {
   remarks?: string;
   timestamp: string;
   txHash?: string;
+  blockchainStatus?: 'PENDING' | 'CONFIRMED' | 'FAILED';
 }
 
 export function useAuditTrail() {
@@ -53,6 +54,7 @@ export function useAuditTrail() {
           remarks: e.remarks,
           timestamp: e.timestamp,
           txHash: e.blockchainTxId ?? b.blockchainHash,
+          blockchainStatus: b.blockchainStatus,
         });
       });
     });
@@ -72,6 +74,7 @@ export function useAuditTrail() {
           remarks: e.remarks ?? p.productName,
           timestamp: e.timestamp,
           txHash: e.blockchainTxId ?? p.blockchainHash,
+          blockchainStatus: p.blockchainStatus,
         });
       });
     });
