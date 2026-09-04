@@ -18,6 +18,7 @@ export const PRODUCTS: Product[] = [
     "formulation": "Proprietary polyherbal",
     "status": "verified",
     "trustScore": 90,
+    "imageUrl": "/product-images/FLOWTEST_Polyherbal_Capsules__page1.jpg",
     "ingredients": [
       {
         "id": "AYUR-PRD-FLOWTS-ing-1",
@@ -157,6 +158,7 @@ export const PRODUCTS: Product[] = [
     "formulation": "Single-herb (Ekamoolika)",
     "status": "verified",
     "trustScore": 100,
+    "imageUrl": "/product-images/Amla_Immunity_Juice__page1.jpg",
     "ingredients": [
       {
         "id": "AYUR-PRD-BRGCOM-ing-1",
@@ -328,6 +330,7 @@ export const PRODUCTS: Product[] = [
     "formulation": "Single-herb (Ekamoolika)",
     "status": "verified",
     "trustScore": 100,
+    "imageUrl": "/product-images/amla-herbal-powder.jpg",
     "ingredients": [
       {
         "id": "AYUR-PRD-SL8F6F-ing-1",
@@ -476,6 +479,7 @@ export const PRODUCTS: Product[] = [
     "formulation": "Single-herb (Ekamoolika)",
     "status": "verified",
     "trustScore": 100,
+    "imageUrl": "/product-images/Shatavari_Wellness_Powder__page1.jpg",
     "ingredients": [
       {
         "id": "AYUR-PRD-2PV1PI-ing-1",
@@ -624,6 +628,7 @@ export const PRODUCTS: Product[] = [
     "formulation": "Single-herb (Ekamoolika)",
     "status": "verified",
     "trustScore": 100,
+    "imageUrl": "/product-images/Shatavari_Women_s_Health_Capsules__page1.jpg",
     "ingredients": [
       {
         "id": "AYUR-PRD-O84CH3-ing-1",
@@ -781,6 +786,7 @@ export const PRODUCTS: Product[] = [
     "formulation": "Single-herb (Ekamoolika)",
     "status": "verified",
     "trustScore": 100,
+    "imageUrl": "/product-images/Shatavari_Herbal_Tea__page1.jpg",
     "ingredients": [
       {
         "id": "AYUR-PRD-R13F9J-ing-1",
@@ -938,6 +944,7 @@ export const PRODUCTS: Product[] = [
     "formulation": "Single-herb (Ekamoolika)",
     "status": "verified",
     "trustScore": 100,
+    "imageUrl": "/product-images/Ashwagandha_Stress_Relief_Powder__page1.jpg",
     "ingredients": [
       {
         "id": "AYUR-PRD-YIL54I-ing-1",
@@ -1086,6 +1093,7 @@ export const PRODUCTS: Product[] = [
     "formulation": "Single-herb (Ekamoolika)",
     "status": "verified",
     "trustScore": 100,
+    "imageUrl": "/product-images/aloe-vera-herbal-gel.jpg",
     "ingredients": [
       {
         "id": "AYUR-PRD-7MLY8Z-ing-1",
@@ -1243,6 +1251,7 @@ export const PRODUCTS: Product[] = [
     "formulation": "Single-herb (Ekamoolika)",
     "status": "verified",
     "trustScore": 100,
+    "imageUrl": "/product-images/Aloe_Vera_Digestive_Juice__page1.jpg",
     "ingredients": [
       {
         "id": "AYUR-PRD-BFIA4E-ing-1",
@@ -1400,6 +1409,7 @@ export const PRODUCTS: Product[] = [
     "formulation": "Single-herb (Ekamoolika)",
     "status": "verified",
     "trustScore": 100,
+    "imageUrl": "/product-images/aloe-vera-skin-care-gel.jpg",
     "ingredients": [
       {
         "id": "AYUR-PRD-QMRPA8-ing-1",
@@ -1548,6 +1558,7 @@ export const PRODUCTS: Product[] = [
     "formulation": "Single-herb (Ekamoolika)",
     "status": "verified",
     "trustScore": 100,
+    "imageUrl": "/product-images/Turmeric_Curcumin_Powder__page1.jpg",
     "ingredients": [
       {
         "id": "AYUR-PRD-UTSHRY-ing-1",
@@ -1705,6 +1716,7 @@ export const PRODUCTS: Product[] = [
     "formulation": "Single-herb (Ekamoolika)",
     "status": "verified",
     "trustScore": 100,
+    "imageUrl": "/product-images/turmeric-golden-milk-mix.jpg",
     "ingredients": [
       {
         "id": "AYUR-PRD-5NNY5I-ing-1",
@@ -1862,6 +1874,7 @@ export const PRODUCTS: Product[] = [
     "formulation": "Single-herb (Ekamoolika)",
     "status": "verified",
     "trustScore": 100,
+    "imageUrl": "/product-images/turmeric-wellness-capsules.jpg",
     "ingredients": [
       {
         "id": "AYUR-PRD-14WAG7-ing-1",
@@ -2010,6 +2023,7 @@ export const PRODUCTS: Product[] = [
     "formulation": "Single-herb (Ekamoolika)",
     "status": "verified",
     "trustScore": 100,
+    "imageUrl": "/product-images/Brahmi_Memory_Support_Capsules__page1.jpg",
     "ingredients": [
       {
         "id": "AYUR-PRD-DL4Y0B-ing-1",
@@ -2158,6 +2172,7 @@ export const PRODUCTS: Product[] = [
     "formulation": "Classical polyherbal",
     "status": "verified",
     "trustScore": 100,
+    "imageUrl": "/product-images/Cinnamon_Digestive_Tea__page1.jpg",
     "ingredients": [
       {
         "id": "AYUR-PRD-PWFKFA-ing-1",

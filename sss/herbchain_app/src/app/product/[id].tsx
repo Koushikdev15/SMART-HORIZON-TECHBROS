@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
+  Image,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
@@ -21,7 +22,7 @@ import { BlockchainCard, RecallBanner } from '@/components/CardsAndInputs';
 import Icon from '@/components/Icon';
 import { getProductById, PRODUCTS } from '@/data/mockProducts';
 import { useProductStore } from '@/store/productStore';
-import { ApiError } from '@/lib/api';
+import { ApiError, assetUrl } from '@/lib/api';
 import { productService, type SuitabilityResult } from '@/services/productService';
 import { storeService, type NearbyStore } from '@/services/storeService';
 import { reviewService, type ProductReview, type ProductReviewStats } from '@/services/reviewService';
@@ -206,7 +207,15 @@ export default function ProductDetailScreen() {
         <View style={[styles.heroCard, Shadow.md]}>
           <View style={styles.heroRow}>
             <View style={styles.imgBox}>
-              <Icon name="medical" size={40} color={Colors.primary} />
+              {suitability?.product.images?.[0] || product.imageUrl ? (
+                <Image
+                  source={{ uri: assetUrl(suitability?.product.images?.[0] || product.imageUrl!) }}
+                  style={styles.heroImg}
+                  resizeMode="cover"
+                />
+              ) : (
+                <Icon name="medical" size={40} color={Colors.primary} />
+              )}
             </View>
 
             <View style={{ flex: 1 }}>
@@ -446,6 +455,51 @@ export default function ProductDetailScreen() {
                   </Text>
                 </View>
               ) : null}
+              {suitability.product.positives ? (
+                <View style={styles.infoRow}>
+                  <Icon name="checkmark-circle-outline" size={15} color={Colors.success} />
+                  <Text style={styles.infoLabelText}>
+                    <Text style={{ fontFamily: Fonts.family.semiBold }}>Potential benefits: </Text>
+                    {suitability.product.positives}
+                  </Text>
+                </View>
+              ) : null}
+              {suitability.product.negatives ? (
+                <View style={styles.infoRow}>
+                  <Icon name="warning-outline" size={15} color={Colors.error} />
+                  <Text style={styles.infoLabelText}>
+                    <Text style={{ fontFamily: Fonts.family.semiBold }}>Known side effects: </Text>
+                    {suitability.product.negatives}
+                  </Text>
+                </View>
+              ) : null}
+              {suitability.product.ageBasedUsage ? (
+                <View style={styles.infoRow}>
+                  <Icon name="people-outline" size={15} color={Colors.textSecondary} />
+                  <Text style={styles.infoLabelText}>
+                    <Text style={{ fontFamily: Fonts.family.semiBold }}>Age guidance: </Text>
+                    {suitability.product.ageBasedUsage}
+                  </Text>
+                </View>
+              ) : null}
+              {suitability.product.notRecommendedFor ? (
+                <View style={styles.infoRow}>
+                  <Icon name="close-circle-outline" size={15} color={Colors.error} />
+                  <Text style={styles.infoLabelText}>
+                    <Text style={{ fontFamily: Fonts.family.semiBold }}>Not recommended for: </Text>
+                    {suitability.product.notRecommendedFor}
+                  </Text>
+                </View>
+              ) : null}
+              {suitability.product.sustainabilityNote ? (
+                <View style={styles.infoRow}>
+                  <Icon name="leaf-outline" size={15} color={Colors.success} />
+                  <Text style={styles.infoLabelText}>
+                    <Text style={{ fontFamily: Fonts.family.semiBold }}>Sustainability: </Text>
+                    {suitability.product.sustainabilityNote}
+                  </Text>
+                </View>
+              ) : null}
 
               <View style={[styles.verdictBadge, { backgroundColor: VERDICT_STYLE[suitability.verdict].bg, marginTop: Spacing.md }]}>
                 <Icon name={VERDICT_STYLE[suitability.verdict].icon} size={16} color={VERDICT_STYLE[suitability.verdict].fg} />
@@ -471,8 +525,9 @@ export default function ProductDetailScreen() {
                   />
                 </View>
                 <Text style={styles.riskScoreNote}>
-                  Reflects allergy-conflict severity, documented contraindications, and how complete your health
-                  profile and doctor guidance coverage are for this product. Higher means more caution is warranted.
+                  Reflects allergy conflicts, restrictions on file that actually apply to your health profile, the
+                  documented severity of this product's known side effects, and how complete your health profile and
+                  doctor guidance coverage are. Higher means more caution is warranted.
                 </Text>
                 {(suitability.riskBand === 'ELEVATED' || suitability.riskBand === 'HIGH') && (
                   <TouchableOpacity
@@ -681,7 +736,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: Spacing.md,
+    overflow: 'hidden',
   },
+  heroImg: { width: '100%', height: '100%' },
   nameText: {
     fontFamily: Fonts.family.serifSemiBold,
     fontSize: Fonts.size.xl,

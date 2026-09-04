@@ -1,18 +1,55 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Colors, Fonts, Spacing, BorderRadius, Shadow } from '@/theme';
 import { AppHeader } from '@/components/Header';
 import Icon from '@/components/Icon';
 import { getProductById, PRODUCTS } from '@/data/mockProducts';
+import { productService, BlockchainStatusResult } from '@/services/productService';
 
 export default function BlockchainScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
 
+  // Bridges this screen's demo product catalog to the real chain the same
+  // way the suitability check does — by product name, against whatever
+  // Supabase actually has recorded for a product with that name. A match
+  // failing to appear here is not a bug: it means this exact demo product
+  // hasn't gone through the real Fabric pipeline yet.
   const product = getProductById(id || '') || PRODUCTS[0];
-  const { blockchain } = product;
+  const [blockchain, setBlockchain] = useState<BlockchainStatusResult | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    productService
+      .getBlockchainStatus(product.name)
+      .then((result) => {
+        if (!cancelled) setBlockchain(result);
+      })
+      .catch(() => {
+        if (!cancelled) setBlockchain({ verified: false });
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [product.name]);
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <AppHeader showBack onBackPress={() => router.back()} title="Blockchain Verification" />
+        <View style={styles.loadingBox}>
+          <ActivityIndicator color={Colors.gold} />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -25,38 +62,30 @@ export default function BlockchainScreen() {
             <Icon name="cube" size={32} color={Colors.gold} />
           </View>
           <Text style={styles.statusTitle}>
-            {blockchain.verified ? 'Blockchain Verified ✓' : 'Unverified Record ⚠️'}
+            {blockchain?.verified ? 'Blockchain Verified ✓' : 'Unverified Record ⚠️'}
           </Text>
-          <Text style={styles.networkSub}>{blockchain.network || 'AyurTrace Polygon Network'}</Text>
+          <Text style={styles.networkSub}>{blockchain?.network || 'Not yet recorded on-chain'}</Text>
         </View>
 
-        {/* Technical Ledger Specs */}
+        {/* Technical Ledger Specs — only fields the real Fabric Gateway
+            integration actually produces; nothing here is invented when a
+            product isn't verified. */}
         <View style={[styles.card, Shadow.sm]}>
           <Text style={styles.cardTitle}>Technical Ledger Data</Text>
 
           <View style={styles.fieldItem}>
             <Text style={styles.fieldLabel}>Transaction Reference</Text>
-            <Text style={styles.fieldValMono}>{blockchain.transactionRef || 'N/A'}</Text>
+            <Text style={styles.fieldValMono}>{blockchain?.transactionRef || 'N/A'}</Text>
           </View>
 
           <View style={styles.fieldItem}>
             <Text style={styles.fieldLabel}>Transaction ID (TX Hash)</Text>
-            <Text style={styles.fieldValMono}>{blockchain.transactionId || 'N/A'}</Text>
-          </View>
-
-          <View style={styles.fieldItem}>
-            <Text style={styles.fieldLabel}>Block Number</Text>
-            <Text style={styles.fieldValMono}>{blockchain.blockNumber || 'N/A'}</Text>
-          </View>
-
-          <View style={styles.fieldItem}>
-            <Text style={styles.fieldLabel}>Record Cryptographic Hash</Text>
-            <Text style={styles.fieldValMono}>{blockchain.recordHash || 'N/A'}</Text>
+            <Text style={styles.fieldValMono}>{blockchain?.transactionId || 'N/A'}</Text>
           </View>
 
           <View style={styles.fieldItem}>
             <Text style={styles.fieldLabel}>Timestamp</Text>
-            <Text style={styles.fieldVal}>{blockchain.timestamp || 'N/A'}</Text>
+            <Text style={styles.fieldVal}>{blockchain?.timestamp || 'N/A'}</Text>
           </View>
         </View>
 
@@ -76,6 +105,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.cream,
+  },
+  loadingBox: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   scrollContent: {
     paddingHorizontal: Spacing.base,

@@ -2,6 +2,8 @@ import { Request, Response, NextFunction } from 'express';
 import { ProductService } from '../services/ProductService';
 import { SuitabilityService } from '../services/SuitabilityService';
 import { StoreService } from '../services/StoreService';
+import { BlockchainStatusService } from '../services/BlockchainStatusService';
+import { TraceService } from '../services/TraceService';
 import { sendResponse } from '../utils/response';
 import { createProductSchema, suitabilitySchema } from '../validators/productValidator';
 import { AuthRequest } from '../middleware/authMiddleware';
@@ -11,6 +13,8 @@ export class ProductController {
   private productService = new ProductService();
   private suitabilityService = new SuitabilityService();
   private storeService = new StoreService();
+  private blockchainStatusService = new BlockchainStatusService();
+  private traceService = new TraceService();
 
   create = async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
@@ -81,6 +85,34 @@ export class ProductController {
       }
       const result = await this.suitabilityService.check(req.supabaseUser!.id, value);
       return sendResponse(res, 200, true, 'Suitability check complete', result);
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  getTrace = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const code = req.params.code as string;
+      const result = await this.traceService.getByProductCode(code);
+      if (!result.found) {
+        return sendResponse(res, 404, false, 'No product found for this code', undefined, [
+          { message: `No traced product found for code "${code}"` },
+        ]);
+      }
+      return sendResponse(res, 200, true, 'Trace fetched', result);
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  getBlockchainStatus = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { name } = req.query as Record<string, string>;
+      if (!name) {
+        return sendResponse(res, 400, false, 'Validation Error', undefined, [{ message: 'name query param is required' }]);
+      }
+      const result = await this.blockchainStatusService.getByProductName(name);
+      return sendResponse(res, 200, true, 'Blockchain status fetched', result);
     } catch (err) {
       next(err);
     }

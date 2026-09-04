@@ -17,6 +17,7 @@ export interface PurchaseProduct {
   contraindications?: string;
   ingredients: { name: string; scientificName?: string }[];
   regionAvailability: RegionAvailability | null;
+  images?: string[];
 }
 
 export interface StoreOffer {

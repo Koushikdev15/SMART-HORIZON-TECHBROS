@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import type { Product } from '@/types';
 import { Colors, Fonts, Type, Spacing, BorderRadius, Shadow } from '@/theme';
+import { assetUrl } from '@/lib/api';
 import { StatusBadge } from './Badges';
 import Icon from './Icon';
 
@@ -35,7 +36,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     >
       {/* Botanical media panel with a floating verification seal */}
       <View style={[styles.media, isCompact && styles.mediaCompact]}>
-        <Icon name="leaf" size={isCompact ? 28 : 36} color={Colors.onPrimaryContainer} />
+        {product.imageUrl ? (
+          <Image source={{ uri: assetUrl(product.imageUrl) }} style={styles.mediaImage} resizeMode="cover" />
+        ) : (
+          <Icon name="leaf" size={isCompact ? 28 : 36} color={Colors.onPrimaryContainer} />
+        )}
         <View style={styles.sealWrap}>
           <StatusBadge status={product.status} size="sm" />
         </View>
@@ -98,9 +103,14 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surfaceVariant,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
   mediaCompact: {
     height: 140,
+  },
+  mediaImage: {
+    width: '100%',
+    height: '100%',
   },
   sealWrap: {
     position: 'absolute',

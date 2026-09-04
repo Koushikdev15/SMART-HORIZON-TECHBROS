@@ -33,7 +33,12 @@ const app = express();
 
 // Security Middleware
 app.use(helmet());
-app.use(cors());
+
+// ALLOWED_ORIGINS is a comma-separated list (e.g. "https://app.example.com,
+// https://verify.example.com"). Unset in dev so every origin is allowed, as
+// before; set it in production once the real app/web domains are known.
+const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',').map((origin) => origin.trim());
+app.use(cors(allowedOrigins ? { origin: allowedOrigins } : undefined));
 
 // Rate Limiting
 const limiter = rateLimit({
@@ -62,6 +67,11 @@ app.use(morgan('combined'));
 app.get('/health', (req, res) => {
   res.status(200).json({ success: true, message: 'HerbChain AI Backend is running' });
 });
+
+// Product packaging images (seed/data/ayurtrace_products_safety_sustainability.csv's
+// products) — a plain static folder, not user-uploaded content, so no auth/limits
+// beyond what already applies to the whole app.
+app.use('/product-images', express.static('public/product-images'));
 
 app.use('/api/v1/auth', authLimiter, authRoutes);
 app.use('/api/v1/collection', collectionRoutes);

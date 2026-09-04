@@ -1,5 +1,13 @@
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:3000/api/v1';
 
+/** Turns a server-relative path (e.g. Product.images entries, like
+ *  "/product-images/x.jpg") into a full URL against the same API host —
+ *  so it resolves correctly whether that host is localhost, a LAN address,
+ *  or a production domain, without a separately-configured asset host. */
+export function assetUrl(relativePath: string): string {
+  return `${API_BASE_URL.replace(/\/api\/v1\/?$/, '')}${relativePath}`;
+}
+
 export class ApiError extends Error {
   status: number;
   errors?: unknown;

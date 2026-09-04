@@ -33,6 +33,24 @@ export interface IProduct extends Document {
   precautions?: string;
   contraindications?: string;
 
+  // Safety/sustainability content sourced from a curated per-product dataset
+  // (see seed/data/ayurtrace_products_safety_sustainability.csv) — kept as
+  // their own fields for display (product description screens), in addition
+  // to being folded into precautions/contraindications above so the existing
+  // relevance-matching in ChatSafetyService/SuitabilityService picks them up
+  // without duplicating that logic.
+  positives?: string;
+  negatives?: string;
+  ageBasedUsage?: string;
+  notRecommendedFor?: string;
+  sustainabilityNote?: string;
+  safetyNote?: string;
+
+  /** Packaging photos, server-relative paths (e.g. "/product-images/x.jpg")
+   *  — the client prefixes with its own API host, same as every other URL
+   *  it builds, so this stays correct across dev/LAN/production hosts. */
+  images: string[];
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -58,6 +76,15 @@ const ProductSchema: Schema = new Schema(
     usageInstructions: { type: String },
     precautions: { type: String },
     contraindications: { type: String },
+
+    positives: { type: String },
+    negatives: { type: String },
+    ageBasedUsage: { type: String },
+    notRecommendedFor: { type: String },
+    sustainabilityNote: { type: String },
+    safetyNote: { type: String },
+
+    images: { type: [String], default: [] },
   },
   { timestamps: true }
 );

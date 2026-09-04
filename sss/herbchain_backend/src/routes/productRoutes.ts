@@ -18,6 +18,8 @@ router.get('/by-qr/:qrCode', controller.getByQrCode);
 // catalog/creation) is Manufacturer-owned and stays on Mongo-JWT.
 router.post('/suitability', authenticateSupabaseJWT, controller.checkSuitability);
 router.post('/sustainability', controller.getSustainability);
+router.get('/blockchain', controller.getBlockchainStatus);
+router.get('/trace/:code', controller.getTrace);
 router.get('/purchase', controller.browseForPurchase);
 
 router.get('/:id/offers', controller.getOffers);

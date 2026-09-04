@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
+  Image,
   StyleSheet,
   TextInput,
   TouchableOpacity,
@@ -19,7 +20,7 @@ import { GuestGate } from '@/components/GuestGate';
 import { useAuthStore } from '@/store/authStore';
 import { useCartStore } from '@/store/cartStore';
 import { useToastStore } from '@/store/toastStore';
-import { ApiError } from '@/lib/api';
+import { ApiError, assetUrl } from '@/lib/api';
 import { ebuyService, type PurchaseProduct, type Order } from '@/services/ebuyService';
 import { reviewService, type ProductReviewStats } from '@/services/reviewService';
 import { estimateDelivery } from '@/lib/deliveryEstimate';
@@ -63,7 +64,11 @@ function ProductPurchaseCard({
   return (
     <TouchableOpacity style={[styles.productCard, Shadow.sm]} onPress={onPress} activeOpacity={0.8}>
       <View style={styles.productImgBox}>
-        <Icon name="leaf-outline" size={22} color={Colors.primary} />
+        {product.images?.[0] ? (
+          <Image source={{ uri: assetUrl(product.images[0]) }} style={styles.productImg} resizeMode="cover" />
+        ) : (
+          <Icon name="leaf-outline" size={22} color={Colors.primary} />
+        )}
       </View>
       <View style={{ flex: 1 }}>
         <Text style={styles.productName} numberOfLines={1}>{product.productName}</Text>
@@ -594,7 +599,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.outlineVariant,
   },
   searchInput: { flex: 1, ...Type.bodyMd, color: Colors.text },
-  categoryRow: { paddingHorizontal: Spacing.gutter, paddingBottom: Spacing.md, gap: Spacing.md, alignItems: 'flex-start' },
+  categoryRow: { paddingHorizontal: Spacing.gutter, paddingBottom: Spacing.base, gap: Spacing.md, alignItems: 'flex-start' },
   categoryItem: { alignItems: 'center', width: 76 },
   categoryIcon: {
     width: 56,
@@ -610,7 +615,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.family.medium,
     fontSize: 11,
     lineHeight: 13,
-    height: 26,
+    minHeight: 26,
     color: Colors.onSurfaceVariant,
     textAlign: 'center',
   },
@@ -637,13 +642,15 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.secondaryContainer,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
+  productImg: { width: '100%', height: '100%' },
   productName: { ...Type.labelMd, fontSize: 15, color: Colors.onSurface, flexShrink: 1 },
   sectionHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginTop: Spacing.xs,
+    marginTop: Spacing.sm,
     marginBottom: 2,
   },
   sectionHeaderText: { ...Type.labelMd, fontSize: 12, color: Colors.primary },

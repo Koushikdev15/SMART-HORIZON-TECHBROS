@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, Image, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Location from 'expo-location';
@@ -9,7 +9,7 @@ import Icon from '@/components/Icon';
 import { useCartStore } from '@/store/cartStore';
 import { useToastStore } from '@/store/toastStore';
 import { useAuthStore } from '@/store/authStore';
-import { ApiError } from '@/lib/api';
+import { ApiError, assetUrl } from '@/lib/api';
 import { ebuyService, type PurchaseProduct, type StoreOffer } from '@/services/ebuyService';
 import { storeService } from '@/services/storeService';
 import { estimateDelivery } from '@/lib/deliveryEstimate';
@@ -136,7 +136,11 @@ export default function EBuyProductDetailScreen() {
           <View style={[styles.heroCard, Shadow.md]}>
             <View style={styles.heroTopRow}>
               <View style={styles.imgBox}>
-                <Icon name="leaf" size={28} color={Colors.primary} />
+                {product.images?.[0] ? (
+                  <Image source={{ uri: assetUrl(product.images[0]) }} style={styles.heroImg} resizeMode="cover" />
+                ) : (
+                  <Icon name="leaf" size={28} color={Colors.primary} />
+                )}
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.title}>{product.productName}</Text>
@@ -230,6 +234,13 @@ export default function EBuyProductDetailScreen() {
 
           {/* Details */}
           <View style={[styles.detailCard, Shadow.sm]}>
+            {product.images?.[1] && (
+              <Image
+                source={{ uri: assetUrl(product.images[1]) }}
+                style={styles.infographicImg}
+                resizeMode="contain"
+              />
+            )}
             {product.description ? (
               <>
                 <Text style={styles.detailText} numberOfLines={descExpanded ? undefined : DESCRIPTION_PREVIEW_LINES}>
@@ -347,6 +358,15 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.lightGreen,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  heroImg: { width: '100%', height: '100%' },
+  infographicImg: {
+    width: '100%',
+    height: 260,
+    borderRadius: BorderRadius.lg,
+    marginBottom: Spacing.md,
+    backgroundColor: Colors.surfaceContainerHigh,
   },
   title: { fontFamily: Fonts.family.serifSemiBold, fontSize: Fonts.size.xl, color: Colors.primary },
   mfrText: { fontFamily: Fonts.family.medium, fontSize: Fonts.size.sm, color: Colors.textSecondary, marginTop: 2 },

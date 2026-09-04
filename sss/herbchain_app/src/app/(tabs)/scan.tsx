@@ -26,11 +26,38 @@ export default function ScanScreen() {
     }, [])
   );
 
+  // A real product QR (printed from herbchain_web's manufacturer/traceability
+  // portal) encodes a full https://.../verify/<code> URL — the code itself
+  // is the last path segment. Pulling that out and looking it up through
+  // this app's own real trace endpoint (see traceService.ts) shows the same
+  // real, Supabase-backed data natively, instead of leaving the app to open
+  // a browser, or — the original bug — routing the whole URL string into
+  // the local demo catalog, where it matched nothing and silently fell back
+  // to a placeholder product.
+  function extractCode(data: string): string {
+    if (!/^https?:\/\//i.test(data)) return data;
+    try {
+      const segments = new URL(data).pathname.split('/').filter(Boolean);
+      return segments[segments.length - 1] || data;
+    } catch {
+      return data;
+    }
+  }
+
+  const handleScannedData = (data: string) => {
+    const code = extractCode(data);
+    if (!code) {
+      Alert.alert('Unreadable code', 'This QR code did not contain a recognisable product code.');
+      return;
+    }
+    router.push(`/verify/${encodeURIComponent(code)}` as any);
+  };
+
   const handleBarcodeScanned = (result: BarcodeScanningResult) => {
     if (scannedRef.current || !result.data) return;
     scannedRef.current = true;
     setIsActive(false);
-    router.push(`/verify/${encodeURIComponent(result.data)}` as any);
+    handleScannedData(result.data);
   };
 
   const handleGalleryPick = async () => {
@@ -54,7 +81,7 @@ export default function ScanScreen() {
         Alert.alert('No QR Code Found', 'That photo doesn’t contain a valid QR code. Please choose a photo with a clear, valid QR code.');
         return;
       }
-      router.push(`/verify/${encodeURIComponent(results[0].data)}` as any);
+      handleScannedData(results[0].data);
     } catch {
       Alert.alert('No QR Code Found', 'That photo doesn’t contain a valid QR code. Please choose a photo with a clear, valid QR code.');
     } finally {

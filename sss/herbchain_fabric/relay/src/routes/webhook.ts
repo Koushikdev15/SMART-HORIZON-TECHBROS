@@ -12,7 +12,7 @@ import { config } from '../config';
  * `payload` jsonb column — so a batch's species lives at `record.payload.species`,
  * not `record.species`.
  */
-interface WebhookPayload {
+export interface WebhookPayload {
   type: 'INSERT' | 'UPDATE' | 'DELETE';
   table: string;
   schema: string;
@@ -20,7 +20,7 @@ interface WebhookPayload {
   old_record: Record<string, any> | null;
 }
 
-interface ChaincodeCall {
+export interface ChaincodeCall {
   fn: string;
   args: string[];
   label: string; // for logging only
@@ -94,7 +94,7 @@ async function handleWebhook(
 // only decides WHAT to call, handleWebhook is the only place that actually
 // calls it.
 
-function planBatchEvents(body: WebhookPayload): ChaincodeCall[] {
+export function planBatchEvents(body: WebhookPayload): ChaincodeCall[] {
   const id = body.record.id as string;
   const p = body.record.payload ?? {};
   const oldP = body.old_record?.payload ?? {};
@@ -167,7 +167,7 @@ function planBatchEvents(body: WebhookPayload): ChaincodeCall[] {
   return calls;
 }
 
-function planProductEvents(body: WebhookPayload): ChaincodeCall[] {
+export function planProductEvents(body: WebhookPayload): ChaincodeCall[] {
   const id = body.record.id as string;
   const p = body.record.payload ?? {};
   const oldP = body.old_record?.payload ?? {};

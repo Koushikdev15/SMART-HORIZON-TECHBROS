@@ -12,6 +12,13 @@ export interface SuitabilityResult {
     usageInstructions?: string;
     precautions?: string;
     contraindications?: string;
+    positives?: string;
+    negatives?: string;
+    ageBasedUsage?: string;
+    notRecommendedFor?: string;
+    sustainabilityNote?: string;
+    safetyNote?: string;
+    images?: string[];
   };
   verdict: SuitabilityVerdict;
   verdictLabel: string;
@@ -37,6 +44,14 @@ export interface SustainabilityResult {
   tracedIngredients: number;
 }
 
+export interface BlockchainStatusResult {
+  verified: boolean;
+  network?: string;
+  transactionId?: string;
+  transactionRef?: string;
+  timestamp?: string;
+}
+
 export const productService = {
   async checkSuitability(identifier: { productId?: string; productName?: string }): Promise<SuitabilityResult> {
     return apiRequest('/products/suitability', {
@@ -50,5 +65,13 @@ export const productService = {
       method: 'POST',
       body: JSON.stringify(identifier),
     });
+  },
+
+  /** Real Fabric confirmation status for a product, looked up by name against
+   *  Supabase's products table (see herbchain_backend's BlockchainStatusService)
+   *  — the same "bridge this demo screen to real backend data by name" pattern
+   *  checkSuitability already uses. Public, no auth required. */
+  async getBlockchainStatus(productName: string): Promise<BlockchainStatusResult> {
+    return apiRequest(`/products/blockchain?name=${encodeURIComponent(productName)}`);
   },
 };
