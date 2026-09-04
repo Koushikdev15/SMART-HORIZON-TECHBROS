@@ -6,7 +6,7 @@ COPY package*.json ./
 RUN npm install
 
 COPY . .
-RUN npx tsc
+RUN npx tsc && cp -r src/seed/data dist/seed/data
 
 EXPOSE 3000
 
