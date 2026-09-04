@@ -21,7 +21,6 @@ import { useCartStore } from '@/store/cartStore';
 import { useToastStore } from '@/store/toastStore';
 import { ApiError } from '@/lib/api';
 import { ebuyService, type PurchaseProduct, type Order } from '@/services/ebuyService';
-import { tracedProductService, type TracedProduct } from '@/services/tracedProductService';
 import { reviewService, type ProductReviewStats } from '@/services/reviewService';
 import { estimateDelivery } from '@/lib/deliveryEstimate';
 import type { IconName } from '@/components/Icon';
@@ -102,41 +101,6 @@ function ProductPurchaseCard({
   );
 }
 
-/**
- * A product released through the traceability portal and delivered by Supply
- * Chain. It carries real provenance rather than a store listing, so it shows
- * its verified origin and links to the public trace page instead of offering an
- * "Add to Cart" it has no store inventory to honour.
- */
-function TracedProductCard({ product, onPress }: { product: TracedProduct; onPress: () => void }) {
-  const herbs = product.ingredients.map((i) => i.name).join(', ');
-  return (
-    <TouchableOpacity style={[styles.productCard, Shadow.sm]} onPress={onPress} activeOpacity={0.8}>
-      <View style={[styles.productImgBox, styles.tracedImgBox]}>
-        <Icon name="shield-checkmark-outline" size={22} color={Colors.onPrimary} />
-      </View>
-      <View style={{ flex: 1 }}>
-        <View style={styles.tracedTitleRow}>
-          <Text style={styles.productName} numberOfLines={1}>{product.productName}</Text>
-          <View style={styles.tracedBadge}>
-            <Text style={styles.tracedBadgeText}>VERIFIED</Text>
-          </View>
-        </View>
-        {product.mrp != null ? (
-          <Text style={styles.productPrice}>₹{product.mrp}</Text>
-        ) : (
-          <Text style={styles.productPrice}>{product.category}</Text>
-        )}
-        {herbs ? <Text style={styles.tracedHerbs} numberOfLines={1}>{herbs}</Text> : null}
-        <Text style={styles.tracedMaker} numberOfLines={1}>{product.manufacturerName}</Text>
-      </View>
-      <View style={styles.traceBtn}>
-        <Icon name="chevron-forward" size={16} color={Colors.primary} />
-      </View>
-    </TouchableOpacity>
-  );
-}
-
 export default function EBuyScreen() {
   const router = useRouter();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -153,7 +117,6 @@ export default function EBuyScreen() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [addingProductId, setAddingProductId] = useState<string | null>(null);
   const [reviewStatsMap, setReviewStatsMap] = useState<Record<string, ProductReviewStats>>({});
-  const [traced, setTraced] = useState<TracedProduct[]>([]);
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
@@ -185,36 +148,18 @@ export default function EBuyScreen() {
   async function loadProducts() {
     setLoading(true);
     setLoadError(null);
-
-    // Two independent catalogues: store listings from the backend, and the
-    // traceable packs the portal has delivered. Fetched in parallel, and
-    // neither is allowed to take the other down — the backend is often
-    // unreachable from a phone (it defaults to localhost), while the traced
-    // catalogue comes from Supabase regardless.
-    const [storeResult, tracedResult] = await Promise.allSettled([
-      ebuyService.browse({ q: query || undefined, healthTopic: healthTopic || undefined }),
-      tracedProductService.listDelivered({ q: query || undefined, healthTopic: healthTopic || undefined }),
-    ]);
-
-    if (storeResult.status === 'fulfilled') {
-      setProducts(storeResult.value);
+    try {
+      const results = await ebuyService.browse({ q: query || undefined, healthTopic: healthTopic || undefined });
+      setProducts(results);
       reviewService
-        .getStatsForMany(storeResult.value.map((p) => p._id))
+        .getStatsForMany(results.map((p) => p._id))
         .then(setReviewStatsMap)
         .catch(() => setReviewStatsMap({}));
-    } else {
-      setProducts([]);
-    }
-
-    setTraced(tracedResult.status === 'fulfilled' ? tracedResult.value : []);
-
-    // Only an error if neither source produced anything to show.
-    if (storeResult.status === 'rejected' && tracedResult.status === 'rejected') {
-      const err = storeResult.reason;
+    } catch (err) {
       setLoadError(err instanceof ApiError ? err.message : 'Could not load products.');
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   }
 
   useEffect(() => {
@@ -224,12 +169,6 @@ export default function EBuyScreen() {
 
   function openProductDetail(product: PurchaseProduct) {
     router.push(`/ebuy/${product._id}` as any);
-  }
-
-  // Traceability is rendered inside the app; a customer should never be handed
-  // off to a browser to see where their product came from.
-  function openTrace(product: TracedProduct) {
-    router.push(`/trace/${product.productCode}` as any);
   }
 
   async function handleRowAddToCart(product: PurchaseProduct) {
@@ -376,49 +315,29 @@ export default function EBuyScreen() {
                 <View style={styles.centerBox}>
                   <Text style={styles.errorText}>{loadError}</Text>
                 </View>
-              ) : products.length === 0 && traced.length === 0 ? (
+              ) : products.length === 0 ? (
                 <View style={styles.centerBox}>
                   <Text style={styles.emptyText}>No products found.</Text>
                 </View>
               ) : (
                 <>
-                  {traced.length > 0 && (
-                    <>
-                      <View style={styles.sectionHeaderRow}>
-                        <Icon name="shield-checkmark-outline" size={14} color={Colors.primary} />
-                        <Text style={styles.sectionHeaderText}>
-                          Traceable Products ({traced.length})
-                        </Text>
-                      </View>
-                      <Text style={styles.sectionHint}>
-                        Delivered through the AyurTrace+ chain — tap to see the farms they came from.
-                      </Text>
-                      {traced.map((p) => (
-                        <TracedProductCard key={p.productCode} product={p} onPress={() => openTrace(p)} />
-                      ))}
-                    </>
-                  )}
-
-                  {products.length > 0 && (
-                    <>
-                      {traced.length > 0 && (
-                        <View style={styles.sectionHeaderRow}>
-                          <Icon name="storefront-outline" size={14} color={Colors.primary} />
-                          <Text style={styles.sectionHeaderText}>In Stores Near You</Text>
-                        </View>
-                      )}
-                      {products.map((p) => (
-                        <ProductPurchaseCard
-                          key={p._id}
-                          product={p}
-                          onPress={() => openProductDetail(p)}
-                          onAddToCart={() => handleRowAddToCart(p)}
-                          adding={addingProductId === p._id}
-                          reviewStats={reviewStatsMap[p._id]}
-                        />
-                      ))}
-                    </>
-                  )}
+                  <View style={styles.sectionHeaderRow}>
+                    <Icon name="shield-checkmark-outline" size={14} color={Colors.primary} />
+                    <Text style={styles.sectionHeaderText}>Blockchain-Traced Products</Text>
+                  </View>
+                  <Text style={styles.sectionHint}>
+                    Every product below is a real, verified batch traced end-to-end through the AyurTrace+ supply chain.
+                  </Text>
+                  {products.map((p) => (
+                    <ProductPurchaseCard
+                      key={p._id}
+                      product={p}
+                      onPress={() => openProductDetail(p)}
+                      onAddToCart={() => handleRowAddToCart(p)}
+                      adding={addingProductId === p._id}
+                      reviewStats={reviewStatsMap[p._id]}
+                    />
+                  ))}
                 </>
               )}
             </ScrollView>
@@ -720,25 +639,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   productName: { ...Type.labelMd, fontSize: 15, color: Colors.onSurface, flexShrink: 1 },
-  tracedImgBox: { backgroundColor: Colors.primary },
-  tracedTitleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
-  tracedBadge: {
-    backgroundColor: Colors.secondaryContainer,
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: BorderRadius.full,
-  },
-  tracedBadgeText: { fontFamily: Fonts.family.bold, fontSize: 8, color: Colors.onSecondaryContainer },
-  tracedHerbs: { ...Type.bodySm, fontSize: 11, color: Colors.textSecondary, marginTop: 1 },
-  tracedMaker: { ...Type.bodySm, fontSize: 10, color: Colors.textMuted, marginTop: 1 },
-  traceBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: Colors.surfaceContainerHigh,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   sectionHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',

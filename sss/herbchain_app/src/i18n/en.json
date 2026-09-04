@@ -111,7 +111,7 @@
   "verify": {
     "manualTitle": "Manual Verification",
     "batchIdLabel": "Batch ID",
-    "batchIdPlaceholder": "e.g. AYUR-ASH-2026-000458",
+    "batchIdPlaceholder": "e.g. AYUR-PRD-PWFKFA",
     "verifyBatch": "Verify Batch",
     "reading": "Reading QR...",
     "checkingProduct": "Checking Product...",

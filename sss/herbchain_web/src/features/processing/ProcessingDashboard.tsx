@@ -1,4 +1,3 @@
-import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { FlaskConical, TestTube, Cpu, Activity, ArrowUpRight, ArrowDownRight, GitPullRequest } from 'lucide-react';
 import { 

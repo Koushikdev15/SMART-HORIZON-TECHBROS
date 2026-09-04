@@ -50,14 +50,9 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         <Icon name="person" size={20} color={Colors.primaryContainer} />
       </TouchableOpacity>
 
-      {/* Centred logo mark + wordmark */}
+      {/* Centred wordmark */}
       <View style={styles.brandCenter}>
-        <View style={styles.brandLogoRow}>
-          <Image source={require('@/assets/images/logo-mark.png')} style={styles.brandLogoMark} resizeMode="contain" />
-          <Text style={styles.brandName} numberOfLines={1}>
-            AYUTRACE+
-          </Text>
-        </View>
+        <Image source={require('@/assets/images/logo-text.png')} style={styles.brandLogoText} resizeMode="contain" />
         {greeting ? (
           <Text style={styles.greetingText} numberOfLines={1}>
             {greeting}
@@ -145,19 +140,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: Spacing.sm,
   },
-  brandLogoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  brandLogoMark: {
-    width: 22,
-    height: 22,
-  },
-  brandName: {
-    ...Type.headlineMd,
-    color: Colors.primary,
-    letterSpacing: 0.5,
+  brandLogoText: {
+    width: 130,
+    height: 28,
   },
   greetingText: {
     ...Type.labelMd,

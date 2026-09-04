@@ -184,7 +184,7 @@ export default function GovernmentDashboard() {
                     ))}
                   </defs>
                   <Pie data={roleDistribution} cx="50%" cy="50%" innerRadius={58} outerRadius={80} paddingAngle={4} dataKey="value" isAnimationActive={false}>
-                    {roleDistribution.map((entry, i) => <Cell key={i} fill={`url(#grad-pie-${i})`} />)}
+                    {roleDistribution.map((_entry, i) => <Cell key={i} fill={`url(#grad-pie-${i})`} />)}
                   </Pie>
                   <Tooltip cursor={false} />
                 </PieChart>

@@ -2,11 +2,117 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import {
   ShieldCheck, Leaf, FlaskConical, Factory,
-  Calendar, Package, Award, Loader2, AlertTriangle,
+  Calendar, Package, Award, Loader2, AlertTriangle, MapPin, Link2, Download,
 } from 'lucide-react';
+import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
 import { supabase } from '../../lib/supabase';
 import ProductTraceability from './ProductTraceability';
 import type { Batch, Product } from '../../types';
+
+/** Parses the "lat, lng" free-text GPS field collectors enter — same format CreateBatch.tsx writes. */
+function parseGps(gps?: string): [number, number] | null {
+  if (!gps) return null;
+  const parts = gps.split(',').map((p) => Number(p.trim()));
+  if (parts.length !== 2 || parts.some((n) => Number.isNaN(n))) return null;
+  return [parts[0], parts[1]];
+}
+
+/** Real, database-verified tamper-evidence — see herbchain_web/sql/add_ledger_chain.sql.
+ *  Not a distributed blockchain network; a cryptographic hash-chain, the same
+ *  core primitive one is built from, checkable on demand rather than asserted. */
+function LedgerIntegrityBadge() {
+  const [state, setState] = useState<'checking' | 'valid' | 'broken' | 'unavailable'>('checking');
+  const [checked, setChecked] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase.rpc('verify_ledger_chain');
+      if (cancelled) return;
+      if (error || !data?.length) {
+        setState('unavailable');
+        return;
+      }
+      const row = data[0] as { is_valid: boolean; entries_checked: number };
+      setChecked(row.entries_checked);
+      setState(row.is_valid ? 'valid' : 'broken');
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (state === 'checking' || state === 'unavailable') return null;
+
+  return (
+    <div
+      className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-semibold border ${
+        state === 'valid'
+          ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+          : 'bg-red-50 text-red-700 border-red-200'
+      }`}
+    >
+      <Link2 className="w-3.5 h-3.5" />
+      {state === 'valid'
+        ? `Ledger chain verified — ${checked} entries intact`
+        : 'Ledger chain integrity check failed'}
+    </div>
+  );
+}
+
+/** Builds a FHIR-shaped Bundle from the same data already on screen — no new
+ *  data collection, just a standards-shaped envelope around it. */
+function downloadFhirBundle(product: Product, batches: Batch[]) {
+  const bundle = {
+    resourceType: 'Bundle',
+    type: 'collection',
+    timestamp: new Date().toISOString(),
+    entry: [
+      {
+        resource: {
+          resourceType: 'Provenance',
+          target: [{ reference: `Product/${product.productCode}` }],
+          agent: [{ who: { display: product.manufacturerName } }],
+          recorded: product.manufacturingDate,
+        },
+      },
+      ...batches.map((b) => ({
+        resource: {
+          resourceType: 'CollectionEvent',
+          identifier: b.batchNumber,
+          species: b.species,
+          botanicalName: b.botanicalName,
+          quantity: { value: b.quantity, unit: b.unit },
+          collector: { name: b.collectorName, type: b.collectorType },
+          region: b.region,
+          gpsLocation: b.gpsLocation,
+          harvestDate: b.harvestDate,
+        },
+      })),
+      ...batches
+        .filter((b) => b.labReport)
+        .map((b) => ({
+          resource: {
+            resourceType: 'QualityTest',
+            batchNumber: b.batchNumber,
+            moisture: b.moisture,
+            dnaAuthentication: b.labReport?.dnaAuthentication,
+            overallResult: b.labReport?.overallResult,
+            certificateNumber: b.labCertificate,
+          },
+        })),
+    ],
+  };
+
+  const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/fhir+json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${product.productCode}-provenance-bundle.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 /**
  * Public product verification — what a phone camera lands on after scanning
@@ -178,6 +284,18 @@ export default function ProductVerification() {
               </p>
             </div>
           </div>
+
+          <div className="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-emerald-900/10">
+            <LedgerIntegrityBadge />
+            <button
+              type="button"
+              onClick={() => downloadFhirBundle(product, batches)}
+              className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-semibold bg-emerald-900/5 text-emerald-800 border border-emerald-900/15 hover:bg-emerald-900/10 transition-colors"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Download Provenance Bundle (FHIR)
+            </button>
+          </div>
         </section>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
@@ -266,6 +384,50 @@ export default function ProductVerification() {
               onCertificate={handleCertificate}
             />
           </section>
+
+          {batches.some((b) => parseGps(b.gpsLocation)) && (
+            <section className="rounded-2xl bg-white border border-emerald-900/10 p-5 shadow-sm space-y-3">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-900/50 flex items-center gap-1.5">
+                <MapPin className="w-3.5 h-3.5" /> Collection Points
+              </h3>
+              <div className="rounded-xl overflow-hidden border border-emerald-900/10" style={{ height: 220 }}>
+                <MapContainer
+                  center={parseGps(batches.find((b) => parseGps(b.gpsLocation))?.gpsLocation) ?? [21.1458, 79.0882]}
+                  zoom={6}
+                  style={{ height: '100%', width: '100%' }}
+                >
+                  <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; OpenStreetMap contributors' />
+                  {batches.map((b) => {
+                    const pos = parseGps(b.gpsLocation);
+                    if (!pos) return null;
+                    return (
+                      <CircleMarker key={b.id} center={pos} radius={8} fillColor="#159A5A" color="#0B3B20" fillOpacity={0.7} weight={2}>
+                        <Popup>
+                          <span className="font-semibold">{b.species}</span>
+                          <br />
+                          {b.region}
+                          {b.harvestDate ? ` · ${fmtDate(b.harvestDate)}` : ''}
+                        </Popup>
+                      </CircleMarker>
+                    );
+                  })}
+                </MapContainer>
+              </div>
+              <div className="space-y-2 pt-1">
+                {batches.map((b) => (
+                  <div key={b.id} className="flex items-center justify-between text-xs">
+                    <span className="text-emerald-900/70">
+                      {b.species} — {b.region}
+                    </span>
+                    <span className="font-semibold text-emerald-900/80">
+                      {b.collectorName}
+                      {b.collectorType ? ` (${b.collectorType})` : ''}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
           {product.aiSummary && (
             <section className="rounded-2xl bg-emerald-900 text-emerald-50 p-5 shadow-sm">

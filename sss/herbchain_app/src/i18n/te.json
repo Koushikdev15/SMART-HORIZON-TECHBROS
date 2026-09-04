@@ -111,7 +111,7 @@
   "verify": {
     "manualTitle": "మాన్యువల్ ధృవీకరణ",
     "batchIdLabel": "బ్యాచ్ ID",
-    "batchIdPlaceholder": "ఉదా. AYUR-ASH-2026-000458",
+    "batchIdPlaceholder": "ఉదా. AYUR-PRD-PWFKFA",
     "verifyBatch": "బ్యాచ్‌ను ధృవీకరించండి",
     "reading": "QR చదవబడుతోంది...",
     "checkingProduct": "ఉత్పత్తిని తనిఖీ చేస్తోంది...",

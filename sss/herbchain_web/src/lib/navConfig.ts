@@ -3,7 +3,7 @@ import {
   Users, FileText, Package, BarChart3, CreditCard,
   ClipboardList, Settings, UserCheck, AlertTriangle, Search,
   MessageSquare, History, XCircle, PlusCircle, TreePine, Tractor,
-  ScrollText, PackagePlus, User as UserIcon,
+  ScrollText, PackagePlus,
 } from 'lucide-react';
 import type { UserRole } from '../types';
 

@@ -11,10 +11,8 @@ import BotanicalBackground from '../components/BotanicalBackground';
 import {
   LogOut, Shield, Menu, X,
   Bell, Sun, Moon, Search,
-  ChevronRight, Pin, Clock, Globe,
+  ChevronRight, Pin,
 } from 'lucide-react';
-
-const GOV_WORKSPACES = ['Ministry of AYUSH — National', 'Ministry of AYUSH — Kerala Regional Office', 'Ministry of AYUSH — Uttarakhand Regional Office'];
 
 
 // Notification panel
@@ -120,12 +118,11 @@ export default function GlobalLayout() {
   const { user, logout, isSessionValid } = useAuthStore();
   const {
     sidebarCollapsed, toggleSidebar, darkMode, toggleDarkMode, notifications,
-    pinnedNavItems, recentNavItems, togglePinnedNavItem,
+    pinnedNavItems, togglePinnedNavItem,
   } = useAppStore();
   const [showNotifications, setShowNotifications] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
-  const [workspace, setWorkspace] = useState(GOV_WORKSPACES[0]);
   const navigate = useNavigate();
   const { pageId } = useParams<{ pageId?: string }>();
   const activeNavItem = pageId || 'dashboard';
@@ -162,12 +159,7 @@ export default function GlobalLayout() {
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
   const pinnedForRole = pinnedNavItems[user.role] ?? [];
-  const recentForRole = recentNavItems[user.role] ?? [];
   const pinnedItems = navItems.filter((item) => pinnedForRole.includes(item.id));
-  const recentItems = recentForRole
-    .map((id) => navItems.find((item) => item.id === id))
-    .filter((item): item is NavItem => Boolean(item))
-    .slice(0, 3);
 
   const handleNav = (id: string) => {
     setMobileSidebarOpen(false);

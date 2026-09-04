@@ -8,7 +8,17 @@ export interface IProductIngredient {
 export interface IProduct extends Document {
   productName: string;
   batchIds: mongoose.Types.ObjectId[];
-  manufacturerId: mongoose.Types.ObjectId;
+  /** Optional: unset for products synced in from the traceability portal's
+   *  own Supabase-backed records, which have no corresponding Mongo Batch/
+   *  User to reference — see herbchain_backend/scripts/sync-traced-products.ts. */
+  manufacturerId?: mongoose.Types.ObjectId;
+  /** Real manufacturer name, for products that only have a name (from the
+   *  traceability portal) and no linked Mongo manufacturerId. */
+  manufacturerName?: string;
+  /** The traceability portal's own product code (e.g. "AYUR-PRD-XXXXXX"),
+   *  for products synced in from there — lets the app link back to the real
+   *  public trace/verify page. */
+  tracedProductCode?: string;
   qrCode?: string;
   fabricTxHash?: string;
 
@@ -30,8 +40,10 @@ export interface IProduct extends Document {
 const ProductSchema: Schema = new Schema(
   {
     productName: { type: String, required: true },
-    batchIds: [{ type: Schema.Types.ObjectId, ref: 'Batch', required: true }],
-    manufacturerId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    batchIds: [{ type: Schema.Types.ObjectId, ref: 'Batch' }],
+    manufacturerId: { type: Schema.Types.ObjectId, ref: 'User' },
+    manufacturerName: { type: String },
+    tracedProductCode: { type: String },
     qrCode: { type: String },
     fabricTxHash: { type: String },
 

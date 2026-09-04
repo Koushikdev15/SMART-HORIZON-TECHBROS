@@ -15,7 +15,7 @@ import Icon from '@/components/Icon';
 
 export default function ManualVerificationScreen() {
   const router = useRouter();
-  const [batchId, setBatchId] = useState('AYUR-ASH-2026-000458');
+  const [batchId, setBatchId] = useState('AYUR-PRD-PWFKFA');
 
   const handleVerify = () => {
     if (!batchId.trim()) return;
@@ -42,7 +42,7 @@ export default function ManualVerificationScreen() {
             <View style={styles.inputWrapper}>
               <TextInput
                 style={styles.input}
-                placeholder="e.g. AYUR-ASH-2026-000458"
+                placeholder="e.g. AYUR-PRD-PWFKFA"
                 value={batchId}
                 onChangeText={setBatchId}
                 autoCapitalize="characters"
@@ -53,27 +53,27 @@ export default function ManualVerificationScreen() {
           <PrimaryButton title="Verify Batch" onPress={handleVerify} size="lg" />
 
           {/* Quick Demo Options */}
-          <Text style={styles.demoTitle}>Or try a demo batch:</Text>
+          <Text style={styles.demoTitle}>Or try a real traced batch:</Text>
           <View style={styles.demoRow}>
             <TouchableOpacity
               style={styles.demoChip}
-              onPress={() => setBatchId('AYUR-ASH-2026-000458')}
+              onPress={() => setBatchId('AYUR-PRD-PWFKFA')}
             >
-              <Text style={styles.demoChipText}>Ashwagandha</Text>
+              <Text style={styles.demoChipText}>Cinnamon Digestive Tea</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.demoChip}
-              onPress={() => setBatchId('AYUR-TUL-2026-000271')}
+              onPress={() => setBatchId('AYUR-PRD-DL4Y0B')}
             >
-              <Text style={styles.demoChipText}>Tulsi Extract</Text>
+              <Text style={styles.demoChipText}>Brahmi Capsules</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.demoChip, { backgroundColor: Colors.errorContainer }]}
-              onPress={() => setBatchId('AYUR-TRI-2026-000099')}
+              style={styles.demoChip}
+              onPress={() => setBatchId('AYUR-PRD-YIL54I')}
             >
-              <Text style={[styles.demoChipText, { color: Colors.error }]}>Recalled Batch</Text>
+              <Text style={styles.demoChipText}>Ashwagandha Powder</Text>
             </TouchableOpacity>
           </View>
         </View>

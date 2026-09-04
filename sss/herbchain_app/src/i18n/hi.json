@@ -111,7 +111,7 @@
   "verify": {
     "manualTitle": "मैनुअल सत्यापन",
     "batchIdLabel": "बैच ID",
-    "batchIdPlaceholder": "उदा. AYUR-ASH-2026-000458",
+    "batchIdPlaceholder": "उदा. AYUR-PRD-PWFKFA",
     "verifyBatch": "बैच सत्यापित करें",
     "reading": "QR पढ़ा जा रहा है...",
     "checkingProduct": "उत्पाद जांचा जा रहा है...",

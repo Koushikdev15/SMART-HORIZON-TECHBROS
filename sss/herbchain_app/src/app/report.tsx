@@ -19,9 +19,14 @@ import { PrimaryButton } from '@/components/Buttons';
 import Icon from '@/components/Icon';
 import { complaintService, COMPLAINT_ISSUE_TYPES } from '@/services/complaintService';
 import { useAuthStore } from '@/store/authStore';
+import { PRODUCTS } from '@/data/mockProducts';
 
 const ISSUE_TYPES = COMPLAINT_ISSUE_TYPES;
-const ATTACHED_BATCH_ID = 'AYUR-ASH-2026-000458';
+// The batch a report is auto-attached to — kept live against a real traced
+// product instead of a string that goes stale the moment the underlying
+// product catalog changes. Skips placeholder/test entries (e.g. "FLOWTEST")
+// so the demo always attaches to a genuine product.
+const ATTACHED_BATCH_ID = (PRODUCTS.find((p) => !p.name.toUpperCase().includes('FLOWTEST')) ?? PRODUCTS[0])?.batchId ?? 'UNKNOWN';
 
 export default function ReportIssueScreen() {
   const router = useRouter();

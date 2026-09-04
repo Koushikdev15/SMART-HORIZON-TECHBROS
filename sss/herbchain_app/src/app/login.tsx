@@ -73,7 +73,7 @@ export default function LoginScreen() {
           {/* Header Branding */}
           <View style={styles.brandRow}>
             <Image
-              source={require('@/assets/images/logo-wordmark.png')}
+              source={require('@/assets/images/logo-text.png')}
               style={styles.brandLogo}
               resizeMode="contain"
             />
@@ -207,8 +207,8 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xl,
   },
   brandLogo: {
-    height: 88,
-    aspectRatio: 741 / 595,
+    height: 52,
+    aspectRatio: 741 / 161,
   },
   title: {
     fontFamily: Fonts.family.serifSemiBold,

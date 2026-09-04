@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "predev": "kill-port 3000",
     "start": "npx tsx src/server.ts",
     "dev": "npx tsx src/server.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -45,6 +46,7 @@
     "@types/node": "^26.1.1",
     "@types/swagger-ui-express": "^4.1.8",
     "@types/uuid": "^10.0.0",
+    "kill-port": "^2.0.1",
     "nodemon": "^3.1.14",
     "ts-node": "^10.9.2",
     "tsx": "^4.23.12",

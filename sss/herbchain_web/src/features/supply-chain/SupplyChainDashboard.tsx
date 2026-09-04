@@ -1,4 +1,3 @@
-import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Truck, PackageCheck, AlertOctagon, Warehouse, ArrowUpRight, ArrowDownRight, Map } from 'lucide-react';
 import { 
@@ -121,7 +120,7 @@ export default function SupplyChainDashboard() {
                   <ZAxis type="number" dataKey="z" range={[300, 800]} />
                   <Tooltip content={<MinimalTooltip />} cursor={{ strokeDasharray: '3 3', stroke: 'currentColor' }} />
                   <Scatter name="Transit Nodes" data={mapData} fill="#0EA5E9">
-                    {mapData.map((entry, index) => (
+                    {mapData.map((_entry, index) => (
                       <Cell key={`cell-${index}`} fill={['#0EA5E9', '#10B981', '#F59E0B', '#3B82F6'][index % 4]} />
                     ))}
                   </Scatter>

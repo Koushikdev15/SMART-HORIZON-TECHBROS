@@ -1,4 +1,3 @@
-import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Factory, PackageOpen, PackageCheck, Settings2, ArrowUpRight, ArrowDownRight, ServerCog } from 'lucide-react';
 import { 
