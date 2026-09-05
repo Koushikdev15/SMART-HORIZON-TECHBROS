@@ -14,10 +14,10 @@ deployed, and (mostly) run on its own.
 
 | Subproject | What it is | Stack |
 |---|---|---|
-| [`herbchain_app`](herbchain_app) | Customer-facing mobile app | Expo / React Native, expo-router, Zustand |
-| [`herbchain_backend`](herbchain_backend) | REST API: auth, catalog, orders, chat, health/doctor features | Express 5, TypeScript, MongoDB/Mongoose |
-| [`herbchain_web`](herbchain_web) | Staff dashboard (Farmer/Collection/Processing/Manufacturer/Government) + public QR verify page | React 19, Vite, Supabase |
-| [`herbchain_fabric`](herbchain_fabric) | Blockchain provenance layer (chaincode + network + relay) | Hyperledger Fabric, Node/TypeScript |
+| [`herbchain_app`](sss/herbchain_app) | Customer-facing mobile app | Expo / React Native, expo-router, Zustand |
+| [`herbchain_backend`](sss/herbchain_backend) | REST API: auth, catalog, orders, chat, health/doctor features | Express 5, TypeScript, MongoDB/Mongoose |
+| [`herbchain_web`](sss/herbchain_web) | Staff dashboard (Farmer/Collection/Processing/Manufacturer/Government) + public QR verify page | React 19, Vite, Supabase |
+| [`herbchain_fabric`](sss/herbchain_fabric) | Blockchain provenance layer (chaincode + network + relay) | Hyperledger Fabric, Node/TypeScript |
 
 ## System architecture
 
@@ -31,7 +31,7 @@ without touching either application.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the full system diagram and a
 sequence diagram tracing one batch from farm collection to a customer
-viewing it. See [`herbchain_fabric/README.md`](herbchain_fabric/README.md)
+viewing it. See [`herbchain_fabric/README.md`](sss/herbchain_fabric/README.md)
 for the Fabric layer's own wiring diagram and current status (**built, not
 yet running end-to-end** as of this writing).
 
@@ -42,14 +42,14 @@ list. Rough order to bring the stack up for local development:
 
 1. **`herbchain_backend`** — the API most of the others read from.
    ```bash
-   cd herbchain_backend
+   cd sss/herbchain_backend
    npm install
    docker-compose up -d mongodb   # or a local MongoDB install
    npm run dev                    # http://localhost:3000, Swagger at /api-docs
    ```
 2. **`herbchain_web`** — staff dashboard + public verify page.
    ```bash
-   cd herbchain_web
+   cd sss/herbchain_web
    npm install
    npm run dev                    # http://localhost:5173
    ```
@@ -57,7 +57,7 @@ list. Rough order to bring the stack up for local development:
    your backend (LAN IP for a physical device/emulator, not `localhost`)
    and `EXPO_PUBLIC_VERIFY_BASE_URL` at the web app.
    ```bash
-   cd herbchain_app
+   cd sss/herbchain_app
    npm install
    npx expo start
    ```

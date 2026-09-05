@@ -16,7 +16,7 @@ relay directly**, and the relay never calls them back either. The relay
 only reacts to Supabase Database Webhooks and writes its results onto the
 same Supabase rows — so the blockchain layer can be turned on, off, or
 rebuilt without touching either application. See
-[`herbchain_fabric/README.md`](herbchain_fabric/README.md) for the full
+[`herbchain_fabric/README.md`](sss/herbchain_fabric/README.md) for the full
 wiring diagram and current status (**built, not yet running end-to-end**
 as of this writing).
 
